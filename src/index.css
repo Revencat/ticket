@@ -1,1 +1,168 @@
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #eef0ec;
+  --card: #fbfcfa;
+  --card2: #f2f4f0;
+  --ink: #1c211f;
+  --muted: #67716c;
+  --line: #d8ddd6;
+  --line2: #c6cdc4;
+  --accent: #12a374;
+  --accent-soft: #12a3741a;
+  --accent-ink: #ffffff;
+  --ok: #1d9e63;
+  --warn: #c07f10;
+  --danger: #d14343;
+  --sidebar: #171b19;
+  --sidebar-ink: #e8ebe6;
+  --sidebar-mut: #8b948e;
+}
+
+.dark {
+  --bg: #14171a;
+  --card: #1c2023;
+  --card2: #22272b;
+  --ink: #e9ecea;
+  --muted: #939c97;
+  --line: #2c3236;
+  --line2: #3a4147;
+  --accent-ink: #ffffff;
+  --ok: #34c082;
+  --warn: #e0a33c;
+  --danger: #ef6a6a;
+  --sidebar: #0f1214;
+  --sidebar-ink: #e6eae5;
+  --sidebar-mut: #79837d;
+}
+
+@theme inline {
+  --color-paper: var(--bg);
+  --color-card: var(--card);
+  --color-card2: var(--card2);
+  --color-ink: var(--ink);
+  --color-mut: var(--muted);
+  --color-line: var(--line);
+  --color-line2: var(--line2);
+  --color-acc: var(--accent);
+  --color-accink: var(--accent-ink);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-side: var(--sidebar);
+  --color-sideink: var(--sidebar-ink);
+  --color-sidemut: var(--sidebar-mut);
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* papel punteado de fondo */
+.paper-dots {
+  background-image: radial-gradient(var(--line) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* borde de ticket: muescas laterales + separador troquelado */
+.stub {
+  position: relative;
+}
+.stub .notch {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  left: 87px;
+  z-index: 1;
+}
+.stub .notch-t {
+  top: -9px;
+}
+.stub .notch-b {
+  bottom: -9px;
+}
+
+.receipt-tear {
+  height: 10px;
+  background: conic-gradient(from 135deg at 50% 0, var(--card) 90deg, transparent 0) top / 16px 10px repeat-x;
+}
+
+@keyframes scanline {
+  0% {
+    top: 0%;
+  }
+  100% {
+    top: calc(100% - 4px);
+  }
+}
+.scanline {
+  animation: scanline 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.pulse-soft {
+  animation: pulse-soft 1.8s ease-in-out infinite;
+}
+
+@keyframes print-in {
+  from {
+    transform: translateY(-14px);
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+.print-in {
+  animation: print-in 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line2);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.55;
+}
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
