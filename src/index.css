@@ -109,6 +109,31 @@ body {
   background: conic-gradient(from 135deg at 50% 0, var(--card) 90deg, transparent 0) top / 16px 10px repeat-x;
 }
 
+/* borde troquelado inferior de los mini-recibos del panel */
+.receipt-zigzag {
+  height: 8px;
+  background: conic-gradient(from 135deg at 50% 0, #fbfaf3 90deg, transparent 0) top / 12px 8px repeat-x;
+}
+
+.barcode {
+  background: repeating-linear-gradient(
+    90deg,
+    #2b2f2e 0 2px,
+    transparent 2px 5px,
+    #2b2f2e 5px 6px,
+    transparent 6px 9px,
+    #2b2f2e 9px 12px,
+    transparent 12px 14px
+  );
+}
+
+.receipts-scroll {
+  scrollbar-width: none;
+}
+.receipts-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes scanline {
   0% {
     top: 0%;

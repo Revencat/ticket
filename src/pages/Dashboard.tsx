@@ -4,10 +4,10 @@ import { motion } from "framer-motion";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 import { format, parseISO, startOfMonth, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
-import { ScanLine, Wallet, Receipt as ReceiptIcon, Percent, ShieldCheck, ArrowRight, ChevronRight, AlertTriangle } from "lucide-react";
+import { ScanLine, Wallet, Receipt as ReceiptIcon, Percent, ShieldCheck, ArrowRight, AlertTriangle } from "lucide-react";
 import { useApp } from "../lib/store";
 import { fmtEUR, fmtDate, fmtMonth, cls } from "../lib/util";
-import { CatIcon, EmptyState, Button, Dot, CountUp } from "../components/ui";
+import { EmptyState, Button, Dot, CountUp } from "../components/ui";
 
 export default function Dashboard() {
   const { tickets, categories, accent } = useApp();
@@ -180,40 +180,55 @@ export default function Dashboard() {
         </motion.section>
       </div>
 
-      {/* recientes + aviso garantías */}
+      {/* recién archivados (cinta de recibos) + aviso garantías */}
       <div className="grid lg:grid-cols-5 gap-3">
-        <section className="lg:col-span-3 bg-card border border-line rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 pt-4 pb-3">
-            <h2 className="font-display font-bold text-[15px]">Últimos tickets</h2>
-            <Link to="/tickets" className="text-[12.5px] text-acc font-medium inline-flex items-center gap-1 hover:underline">
+        <section className="lg:col-span-3">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="font-display font-bold text-[15px]">Recién archivados</h2>
+            <Link to="/tickets" className="text-[12.5px] text-acc font-medium inline-flex items-center gap-1 hover:gap-2 transition-all hover:underline">
               Ver todos <ArrowRight size={13} />
             </Link>
           </div>
-          <ul className="px-5 pb-4 space-y-2">
-            {stats.recent.map((t) => {
+          <div className="flex gap-4 overflow-x-auto receipts-scroll snap-x snap-mandatory pb-2 pt-2 px-1">
+            {stats.recent.map((t, i) => {
               const cat = catById.get(t.category);
+              const rot = ["-rotate-2", "rotate-1", "rotate-2"][i % 3];
               return (
-                <li key={t.id}>
-                  <Link
-                    to="/tickets"
-                    className="stub flex items-center gap-3 px-3 py-2.5 rounded-lg border border-line bg-card2/50 hover:border-line2 hover:bg-card2 transition-all group"
-                  >
-                    <span className="notch notch-t hidden sm:block" style={{ left: 55 }} />
-                    <span className="notch notch-b hidden sm:block" style={{ left: 55 }} />
-                    <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: (cat?.color || "#64748b") + "1c", color: cat?.color || "#64748b" }}>
-                      <CatIcon id={t.category} size={16} />
-                    </span>
-                    <div className="min-w-0 border-l border-dashed border-line2 pl-3">
-                      <p className="text-[13.5px] font-semibold truncate">{t.store}</p>
-                      <p className="text-[11.5px] text-mut">{fmtDate(t.date)} · {t.items.length} art.</p>
+                <motion.div
+                  key={t.id}
+                  initial={{ opacity: 0, y: 24 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-20px" }}
+                  transition={{ delay: i * 0.06, type: "spring", stiffness: 260, damping: 24 }}
+                  className="snap-start shrink-0"
+                >
+                  <Link to="/tickets" className={cls("block w-[196px] transition-all duration-300 ease-out cursor-pointer", rot, "hover:rotate-0 hover:-translate-y-2 group")}>
+                    <div className="relative bg-[#fbfaf3] text-[#2b2f2e] rounded-t-lg px-3.5 pt-3 pb-2.5 shadow-[0_10px_22px_-12px_rgba(0,0,0,0.4)] group-hover:shadow-[0_20px_34px_-14px_rgba(0,0,0,0.5)] transition-shadow">
+                      <span className="absolute top-0 left-0 right-0 h-[3px] rounded-t-lg" style={{ background: cat?.color || "#64748b" }} />
+                      <p className="font-mono font-bold text-[12.5px] uppercase tracking-wide truncate">{t.store}</p>
+                      <p className="font-mono text-[10.5px] text-[#8d918c] mt-0.5">{fmtDate(t.date)}</p>
+                      <div className="border-t border-dashed border-[#d6d4c7] my-2" />
+                      {t.items.slice(0, 2).map((it) => (
+                        <div key={it.id} className="flex justify-between gap-2 font-mono text-[10.5px] leading-[1.6]">
+                          <span className="truncate">{it.qty > 1 ? `${it.qty}× ` : ""}{it.name}</span>
+                          <span className="shrink-0">{fmtEUR(it.qty * it.price)}</span>
+                        </div>
+                      ))}
+                      {t.items.length === 0 && <p className="font-mono text-[10.5px] text-[#8d918c]">sin líneas</p>}
+                      {t.items.length > 2 && <p className="font-mono text-[10px] text-[#8d918c] mt-0.5">+{t.items.length - 2} artículos más…</p>}
+                      <div className="border-t border-dashed border-[#d6d4c7] my-2" />
+                      <div className="flex items-baseline justify-between">
+                        <span className="font-mono font-bold text-[10px] tracking-[0.18em]">TOTAL</span>
+                        <span className="font-mono font-bold text-[15px]">{fmtEUR(t.total)}</span>
+                      </div>
+                      <div className="barcode mx-auto mt-2.5 h-[14px] w-[68%] opacity-80" />
                     </div>
-                    <span className="ml-auto font-mono font-semibold text-[14px]">{fmtEUR(t.total)}</span>
-                    <ChevronRight size={15} className="text-mut group-hover:text-acc transition-colors shrink-0" />
+                    <div className="receipt-zigzag w-full drop-shadow-[0_6px_6px_rgba(0,0,0,0.18)]" />
                   </Link>
-                </li>
+                </motion.div>
               );
             })}
-          </ul>
+          </div>
         </section>
 
         <section className="lg:col-span-2 space-y-3">
