@@ -1,4 +1,4 @@
-import { format, parseISO } from "date-fns";
+import { format, parseISO, subDays, startOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { v4 as uuidv4 } from "uuid";
 
@@ -61,3 +61,27 @@ export function downscaleImage(dataUrl: string, max = 900, quality = 0.78): Prom
 export const toJpeg = (dataUrl: string) => downscaleImage(dataUrl, 1200, 0.85);
 
 export const monthKey = (iso: string) => iso.slice(0, 7);
+
+/** Fecha relativa corta: hoy / ayer / hace 5 días / 12 ene 2025 */
+export function relDate(iso: string): string {
+  const today = format(new Date(), "yyyy-MM-dd");
+  const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd");
+  if (iso === today) return "hoy";
+  if (iso === yesterday) return "ayer";
+  const d = parseISO(iso);
+  const diff = Math.round((startOfDay(new Date()).getTime() - startOfDay(d).getTime()) / 86400000);
+  if (diff > 1 && diff < 8) return `hace ${diff} días`;
+  return format(d, "d MMM yyyy", { locale: es });
+}
+
+/** «hace unos segundos», «hace 3 min», «hace 2 h»… */
+export function timeAgo(ts: number): string {
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 10) return "ahora mismo";
+  if (s < 60) return `hace ${s} s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `hace ${m} min`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `hace ${h} h`;
+  return format(new Date(ts), "d MMM, HH:mm", { locale: es });
+}

@@ -15,8 +15,9 @@ export interface Ticket {
   items: LineItem[];
   photo?: string; // dataURL
   note?: string;
-  source: "ocr" | "manual" | "demo" | "link";
+  source: "ocr" | "manual" | "demo" | "sync";
   createdAt: number;
+  updatedAt?: number; // para sincronización entre dispositivos
 }
 
 export interface Category {
@@ -37,12 +38,14 @@ export interface Settings {
   customColor: string;
   dark: boolean;
   seeded: boolean;
+  exportPhotos?: boolean; // recuerda la última opción de exportación
 }
 
 export interface ToastMsg {
   id: number;
   kind: "ok" | "warn" | "danger" | "info";
   text: string;
+  action?: { label: string; run: () => void };
 }
 
 export const DEFAULT_CATEGORIES: Category[] = [

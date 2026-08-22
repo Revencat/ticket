@@ -1,20 +1,19 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import confetti from "canvas-confetti";
 import { Camera, Upload, Sparkles, ArrowLeft, Trash2, Plus, Save, RefreshCw, AlertTriangle, Loader2, ScanLine, FileQuestion, ShieldCheck } from "lucide-react";
 import { useApp } from "../lib/store";
 import { runOcr, parseReceipt, simulateScan, type OcrProgress, type ScanDraft } from "../lib/ocr";
 import { downscaleImage, fmtEUR, todayISO, uid, cls } from "../lib/util";
 import type { LineItem, Ticket } from "../types";
-import { Button, Field, inputCls, CatIcon } from "../components/ui";
+import { Button, Field, inputCls } from "../components/ui";
 
 type Phase = "input" | "camera" | "processing" | "review" | "error";
 
 interface ReviewItem extends LineItem {}
 
 export default function Scan() {
-  const { stores, categories, addTicket, toast, accent } = useApp();
+  const { stores, categories, addTicket, toast } = useApp();
   const nav = useNavigate();
   const [phase, setPhase] = useState<Phase>("input");
   const [progress, setProgress] = useState<OcrProgress>({ phase: "Preparando…", pct: null });
@@ -35,7 +34,6 @@ export default function Scan() {
   const streamRef = useRef<MediaStream | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // cámara
   useEffect(() => {
     if (phase !== "camera") return;
     let cancelled = false;
@@ -63,7 +61,7 @@ export default function Scan() {
     };
   }, [phase]);
 
-  const loadDraft = (d: ScanDraft, source: Ticket["source"]) => {
+  const loadDraft = (d: ScanDraft) => {
     setStore(d.store);
     setDate(d.date);
     setTotal(d.total ? String(d.total).replace(".", ",") : "");
@@ -72,7 +70,6 @@ export default function Scan() {
     setItems(d.items.map((i) => ({ id: uid(), name: i.name, qty: i.qty, price: i.price, warrantyMonths: i.warrantyMonths })));
     setPhoto(d.photo);
     setFormError("");
-    void source;
     setPhase("review");
   };
 
@@ -82,7 +79,7 @@ export default function Scan() {
     setProgress({ phase: "Cargando motor OCR", pct: null });
     try {
       const text = await runOcr(dataUrl, setProgress);
-      loadDraft({ ...parseReceipt(text, stores, categories), photo: dataUrl }, "ocr");
+      loadDraft({ ...parseReceipt(text, stores, categories), photo: dataUrl });
       toast("ok", "Texto leído. Revisa los datos detectados.");
     } catch {
       setErrMsg("El OCR no pudo procesar la imagen (¿sin conexión? El motor descarga el idioma la primera vez). Puedes crear el ticket manualmente.");
@@ -119,7 +116,7 @@ export default function Scan() {
   const runSimulation = async () => {
     setPhase("processing");
     const d = await simulateScan(setProgress);
-    loadDraft(d, "demo");
+    loadDraft(d);
     toast("info", "Simulación completada: así se ve un ticket detectado.");
   };
 
@@ -149,7 +146,6 @@ export default function Scan() {
     };
     window.setTimeout(() => {
       addTicket(ticket);
-      confetti({ particleCount: 110, spread: 75, origin: { y: 0.7 }, colors: [accent, "#f0c94c", "#ffffff", "#7ee2b8"] });
       toast("ok", `Ticket de ${fmtEUR(ticket.total)} archivado en ${categories.find((c) => c.id === category)?.name || "Otros"}.`);
       nav("/tickets");
     }, 250);
@@ -168,11 +164,11 @@ export default function Scan() {
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) onFile(f); }}
               className={cls(
-                "border-2 border-dashed rounded-xl bg-card p-8 text-center transition-all",
-                dragOver ? "border-acc bg-acc/8 scale-[1.01]" : "border-line2"
+                "border-2 border-dashed rounded-xl bg-card p-8 text-center transition-all duration-200",
+                dragOver ? "border-acc bg-acc/6 scale-[1.005]" : "border-line2"
               )}
             >
-              <div className="w-14 h-14 mx-auto rounded-xl bg-acc/12 text-acc flex items-center justify-center mb-4">
+              <div className="w-13 h-13 sm:w-14 sm:h-14 mx-auto rounded-xl bg-acc/10 text-acc flex items-center justify-center mb-4">
                 <ScanLine size={26} />
               </div>
               <h2 className="font-display font-bold text-xl">¿Qué quieres archivar hoy?</h2>
@@ -183,10 +179,7 @@ export default function Scan() {
                 <Button size="lg" onClick={() => setPhase("camera")}><Camera size={18} /> Usar cámara</Button>
                 <Button size="lg" variant="outline" onClick={() => fileRef.current?.click()}><Upload size={18} /> Subir foto</Button>
               </div>
-              <button
-                onClick={runSimulation}
-                className="mt-5 inline-flex items-center gap-2 text-[13px] text-acc font-medium hover:underline cursor-pointer"
-              >
+              <button onClick={runSimulation} className="mt-5 inline-flex items-center gap-2 text-[13px] text-acc font-medium hover:underline cursor-pointer">
                 <Sparkles size={14} /> Probar con un ticket simulado
               </button>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
@@ -198,10 +191,10 @@ export default function Scan() {
                 ["2 · OCR local", "Tesseract lee total, fecha, tienda y productos en español."],
                 ["3 · Revisa y guarda", "Comprueba los datos, ajusta la categoría y archívalo."],
               ].map(([t, d], i) => (
-                <div key={t} className="bg-card border border-line rounded-xl p-4">
-                  <p className="font-display font-semibold text-acc text-[11px] uppercase tracking-[0.08em]">{t}</p>
+                <motion.div key={t} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.06 }} className="bg-card border border-line rounded-xl p-4">
+                  <p className="font-display font-semibold text-acc text-[13px]">{t}</p>
                   <p className="text-mut mt-1.5 leading-relaxed">{d}</p>
-                </div>
+                </motion.div>
               ))}
             </div>
           </motion.div>
@@ -216,9 +209,11 @@ export default function Scan() {
             </div>
             <div className="flex items-center justify-between p-4">
               <Button variant="ghost" onClick={() => setPhase("input")}><ArrowLeft size={16} /> Volver</Button>
-              <button
+              <motion.button
+                whileTap={{ scale: 0.85 }}
+                transition={{ type: "spring", stiffness: 500, damping: 22 }}
                 onClick={capture}
-                className="w-16 h-16 rounded-full bg-acc border-4 border-card shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                className="w-16 h-16 rounded-full bg-acc border-4 border-card shadow-lg hover:brightness-110 cursor-pointer"
                 title="Capturar"
               />
               <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload size={15} /> Subir foto</Button>
@@ -231,13 +226,13 @@ export default function Scan() {
         {phase === "processing" && (
           <motion.div key="processing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-card border border-line rounded-xl p-8">
             <div className="flex flex-col sm:flex-row gap-8 items-center">
-              <div className="relative w-52 shrink-0">
+              <div className="relative w-52 shrink-0 rounded-lg overflow-hidden">
                 {photo ? (
-                  <img src={photo} alt="Ticket escaneado" className="rounded-lg border border-line shadow-sm w-full" />
+                  <img src={photo} alt="Ticket escaneado" className="rounded-lg border border-line w-full" />
                 ) : (
                   <div className="aspect-[3/4] rounded-lg border border-line bg-card2 flex items-center justify-center text-mut"><ScanLine size={34} /></div>
                 )}
-                <div className="absolute left-0 right-0 scanline h-1 rounded-full bg-acc shadow-[0_0_14px_var(--accent)]" />
+                <div className="absolute left-0 right-0 scanline h-[3px] rounded-full bg-acc opacity-80" />
               </div>
               <div className="flex-1 w-full">
                 <div className="flex items-center gap-2.5">
@@ -247,7 +242,7 @@ export default function Scan() {
                 <p className="text-mut text-sm mt-2 leading-relaxed">
                   Todo ocurre en tu dispositivo. La primera vez puede tardar un poco más porque descarga el modelo de idioma (~4 MB).
                 </p>
-                <div className="mt-5 h-2.5 rounded-full bg-card2 overflow-hidden">
+                <div className="mt-5 h-2 rounded-full bg-card2 overflow-hidden">
                   {pct === null ? (
                     <motion.div className="h-full w-1/3 rounded-full bg-acc" animate={{ x: ["-100%", "320%"] }} transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }} />
                   ) : (
@@ -262,15 +257,13 @@ export default function Scan() {
 
         {/* ── ERROR ───────────────────────────────────────────── */}
         {phase === "error" && (
-          <motion.div key="error" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="bg-card border border-danger/40 rounded-xl p-8 text-center max-w-xl mx-auto">
-            <div className="w-14 h-14 mx-auto rounded-xl bg-danger/12 text-danger flex items-center justify-center mb-4"><FileQuestion size={26} /></div>
+          <motion.div key="error" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="bg-card border border-danger/30 rounded-xl p-8 text-center max-w-xl mx-auto">
+            <div className="w-13 h-13 sm:w-14 sm:h-14 mx-auto rounded-xl bg-danger/10 text-danger flex items-center justify-center mb-4"><FileQuestion size={26} /></div>
             <h2 className="font-display font-bold text-lg">No se pudo leer el ticket</h2>
             <p className="text-mut text-sm mt-2 leading-relaxed">{errMsg}</p>
             <div className="flex gap-3 justify-center mt-6">
               <Button variant="outline" onClick={() => setPhase("input")}><ArrowLeft size={15} /> Volver</Button>
-              <Button
-                onClick={() => loadDraft({ store: "", date: todayISO(), total: 0, category: "otros", items: [], photo }, "manual")}
-              >
+              <Button onClick={() => loadDraft({ store: "", date: todayISO(), total: 0, category: "otros", items: [], photo })}>
                 Crear manualmente
               </Button>
             </div>
@@ -280,22 +273,17 @@ export default function Scan() {
         {/* ── REVISIÓN ────────────────────────────────────────── */}
         {phase === "review" && (
           <motion.div key="review" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="grid lg:grid-cols-5 gap-4 items-start">
-            {/* foto */}
-            <div className="lg:col-span-2 print-in">
-              <div className="bg-card border border-line rounded-t-xl p-4">
-                <p className="text-[11px] font-display font-semibold uppercase tracking-[0.08em] text-mut mb-3">Foto del ticket</p>
-                {photo ? (
-                  <img src={photo} alt="Foto del ticket" className="w-full max-h-[380px] object-contain rounded-lg border border-line bg-white" />
-                ) : (
-                  <div className="h-40 rounded-lg border border-dashed border-line2 flex flex-col items-center justify-center gap-2 text-mut text-sm">
-                    <AlertTriangle size={20} /> Sin foto adjunta
-                  </div>
-                )}
-              </div>
-              <div className="receipt-tear" />
+            <div className="lg:col-span-2 print-in bg-card border border-line rounded-xl p-4">
+              <p className="text-[13px] font-medium text-mut mb-3">Foto del ticket</p>
+              {photo ? (
+                <img src={photo} alt="Foto del ticket" className="w-full max-h-[380px] object-contain rounded-lg border border-line bg-white" />
+              ) : (
+                <div className="h-40 rounded-lg border border-dashed border-line2 flex flex-col items-center justify-center gap-2 text-mut text-sm">
+                  <AlertTriangle size={20} /> Sin foto adjunta
+                </div>
+              )}
             </div>
 
-            {/* formulario */}
             <div className="lg:col-span-3 bg-card border border-line rounded-xl p-5 space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
                 <Field label="Tienda">
@@ -317,7 +305,7 @@ export default function Scan() {
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] font-display font-semibold uppercase tracking-[0.08em] text-mut">Productos detectados ({items.length})</span>
+                  <span className="text-[13px] font-medium text-mut">Productos detectados ({items.length})</span>
                   <div className="flex gap-2">
                     <Button size="sm" variant="ghost" onClick={recomputeTotal} title="Sumar los productos"><RefreshCw size={12} /> Recalcular total</Button>
                     <Button size="sm" variant="ghost" onClick={() => setItems((xs) => [...xs, { id: uid(), name: "", qty: 1, price: 0, warrantyMonths: 0 }])}>
@@ -331,10 +319,10 @@ export default function Scan() {
                   </p>
                 ) : (
                   <div className="border border-line rounded-lg divide-y divide-line max-h-[240px] overflow-y-auto">
-                    <div className="grid grid-cols-[1fr_52px_76px_64px_34px] gap-2 px-3 py-1.5 text-[10.5px] uppercase tracking-wide text-mut font-display font-semibold bg-card2/60 sticky top-0">
+                    <div className="grid grid-cols-[1fr_52px_76px_64px_34px] gap-2 px-3 py-1.5 text-[11px] text-mut font-medium bg-card2/60 sticky top-0">
                       <span>Producto</span><span>Cant.</span><span>Precio</span><span title="Garantía en meses">Gar. m.</span><span />
                     </div>
-                    {items.map((it, idx) => (
+                    {items.map((it) => (
                       <div key={it.id} className="grid grid-cols-[1fr_52px_76px_64px_34px] gap-2 px-3 py-1.5 items-center">
                         <input className="bg-transparent outline-none text-[13px] focus:bg-card2 rounded px-1 h-8" value={it.name} placeholder="Nombre"
                           onChange={(e) => setItems((xs) => xs.map((x) => (x.id === it.id ? { ...x, name: e.target.value } : x)))} />
@@ -361,9 +349,9 @@ export default function Scan() {
               </Field>
 
               {formError && (
-                <p className="flex items-center gap-2 text-[13px] text-danger bg-danger/10 border border-danger/30 rounded-lg px-3 py-2">
+                <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 text-[13px] text-danger bg-danger/8 border border-danger/25 rounded-lg px-3 py-2">
                   <AlertTriangle size={14} /> {formError}
-                </p>
+                </motion.p>
               )}
 
               <div className="flex items-center gap-3 pt-1">

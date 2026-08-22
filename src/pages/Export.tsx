@@ -5,13 +5,18 @@ import { FileSpreadsheet, Download, Loader2, ScanLine, CheckCircle2, Image as Im
 import { useApp } from "../lib/store";
 import { exportExcel, type ExportResult } from "../lib/excel";
 import { fmtEUR } from "../lib/util";
-import { Button, Toggle, Dot, EmptyState } from "../components/ui";
+import { Button, Toggle, EmptyState } from "../components/ui";
 
 export default function Export() {
-  const { tickets, categories, toast } = useApp();
-  const [includePhotos, setIncludePhotos] = useState(true);
+  const { tickets, categories, toast, settings, setSettings } = useApp();
+  const [includePhotos, setIncludePhotosState] = useState(settings.exportPhotos !== false);
   const [exporting, setExporting] = useState(false);
   const [result, setResult] = useState<ExportResult | null>(null);
+
+  const setIncludePhotos = (v: boolean) => {
+    setIncludePhotosState(v);
+    setSettings({ exportPhotos: v }); // recuerda la preferencia para la próxima vez
+  };
 
   const preview = useMemo(() => {
     const sheets = [{ name: "Global", count: tickets.length, color: "#22282a", total: tickets.reduce((a, t) => a + t.total, 0) }];
@@ -55,14 +60,14 @@ export default function Export() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <div className="bg-card border border-line rounded-xl p-6">
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-line rounded-xl p-6">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-acc/12 text-acc flex items-center justify-center shrink-0"><FileSpreadsheet size={22} /></div>
+          <div className="w-11 h-11 rounded-xl bg-acc/10 text-acc flex items-center justify-center shrink-0"><FileSpreadsheet size={21} /></div>
           <div>
             <h2 className="font-display font-bold text-lg">Libro Excel con todo el archivo</h2>
             <p className="text-mut text-sm mt-1 leading-relaxed">
-              Se genera con <strong className="text-ink">ExcelJS</strong> directamente en tu navegador: una hoja <strong className="text-ink">Global</strong> más
-              una hoja por cada categoría con datos, cada fila tintada con su color y el total al pie.
+              Se genera en tu navegador con ExcelJS: una hoja <strong className="text-ink">Global</strong> más una hoja por categoría,
+              cada fila tintada con su color y el total al pie.
             </p>
           </div>
         </div>
@@ -79,7 +84,7 @@ export default function Export() {
         </div>
 
         <div className="mt-5">
-          <p className="text-[11px] font-display font-semibold uppercase tracking-[0.08em] text-mut mb-2">Hojas que se generarán</p>
+          <p className="text-[13px] font-medium text-mut mb-2">Hojas que se generarán</p>
           <div className="grid sm:grid-cols-2 gap-2">
             {preview.map((s, i) => (
               <motion.div key={s.name} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} className="flex items-center gap-3 border border-line rounded-lg px-3.5 py-2.5">
@@ -101,10 +106,10 @@ export default function Export() {
           </Button>
           {exporting && <span className="text-[12.5px] text-mut">Convirtiendo fotos y montando hojas…</span>}
         </div>
-      </div>
+      </motion.div>
 
       {result && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-ok/8 border border-ok/30 rounded-xl p-5">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-ok/6 border border-ok/25 rounded-xl p-5">
           <div className="flex items-start gap-3">
             <CheckCircle2 size={20} className="text-ok shrink-0 mt-0.5" />
             <div className="text-sm">
@@ -122,7 +127,7 @@ export default function Export() {
       )}
 
       <div className="bg-card border border-line rounded-xl p-5 text-[13px] text-mut leading-relaxed">
-        <p className="font-display font-semibold text-ink text-[13.5px] mb-1.5 flex items-center gap-2"><Dot color="var(--accent)" /> Qué contiene cada hoja</p>
+        <p className="font-display font-semibold text-ink text-[13.5px] mb-1.5">Qué contiene cada hoja</p>
         Columnas <span className="font-mono text-ink">Fecha · Tienda · Conceptos · Total · Foto</span>, cabecera en tinta, filas tintadas con el color de la
         categoría, importes con formato <span className="font-mono">1.234,56 €</span> y una fila de total con fórmula SUMA al pie. Los productos con garantía
         se marcan con «(garantía N m)» en Conceptos.

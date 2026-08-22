@@ -3,9 +3,10 @@ import type { Category, Settings, StoreEntry, Ticket, ToastMsg } from "../types"
 import { DEFAULT_CATEGORIES, DEFAULT_STORES } from "../types";
 import { idbAll, idbBulk, idbClear, idbDel, idbPut } from "./idb";
 import { buildDemoTickets } from "./demo";
+import { provisionAccount, startSync, type StoredAccount, type SyncHandle, type SyncStatus, type Tombstone } from "./sync";
 
 export const THEMES = [
-  { id: "bosque", name: "Bosque", color: "#12a374" },
+  { id: "bosque", name: "Bosque", color: "#0f9d63" },
   { id: "petroleo", name: "Petróleo", color: "#0e7c90" },
   { id: "ambar", name: "Ámbar", color: "#d97a08" },
   { id: "frambuesa", name: "Frambuesa", color: "#d6336c" },
@@ -15,9 +16,11 @@ export const THEMES = [
 ];
 
 const LS = {
-  settings: "tb:settings:v1",
+  settings: "tb:settings:v2",
   cats: "tb:cats:v1",
   stores: "tb:stores:v1",
+  account: "tb:account:v1",
+  tombs: "tb:tombstones:v1",
 };
 
 function load<T>(key: string, fallback: T): T {
@@ -52,17 +55,26 @@ interface AppCtx {
   settings: Settings;
   toasts: ToastMsg[];
   accent: string;
+  account: StoredAccount | null;
+  syncStatus: SyncStatus;
+  peers: string[];
+  lastSync: number | null;
+  syncLog: string[];
   addTicket: (t: Ticket) => void;
   addTickets: (ts: Ticket[]) => void;
   updateTicket: (t: Ticket) => void;
   deleteTicket: (id: string) => void;
+  restoreTicket: (t: Ticket) => void;
   clearAll: () => Promise<void>;
   loadDemo: () => Promise<number>;
   setCategories: (c: Category[]) => void;
   setStores: (s: StoreEntry[]) => void;
   setSettings: (p: Partial<Settings>) => void;
-  toast: (kind: ToastMsg["kind"], text: string) => void;
+  toast: (kind: ToastMsg["kind"], text: string, action?: ToastMsg["action"]) => void;
   dismissToast: (id: number) => void;
+  signIn: (name: string, password: string) => Promise<void>;
+  signOut: () => void;
+  syncNow: () => void;
 }
 
 const Ctx = createContext<AppCtx | null>(null);
@@ -73,20 +85,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategoriesState] = useState<Category[]>(() => load(LS.cats, DEFAULT_CATEGORIES));
   const [stores, setStoresState] = useState<StoreEntry[]>(() => load(LS.stores, DEFAULT_STORES));
   const [settings, setSettingsState] = useState<Settings>(() =>
-    load(LS.settings, { theme: "bosque", customColor: "#12a374", dark: false, seeded: false })
+    load(LS.settings, { theme: "bosque", customColor: "#0f9d63", dark: false, seeded: false, exportPhotos: true })
   );
+  const [account, setAccount] = useState<StoredAccount | null>(() => load<StoredAccount | null>(LS.account, null));
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("off");
+  const [peers, setPeers] = useState<string[]>([]);
+  const [lastSync, setLastSync] = useState<number | null>(null);
+  const [syncLog, setSyncLog] = useState<string[]>([]);
+
   const bootRef = useRef(false);
   const toastId = useRef(1);
+  const syncRef = useRef<SyncHandle | null>(null);
+  const ticketsRef = useRef<Ticket[]>([]);
+  const tombsRef = useRef<Tombstone[]>(load<Tombstone[]>(LS.tombs, []));
+  const announceTimer = useRef<number | null>(null);
 
-  const toast = useCallback((kind: ToastMsg["kind"], text: string) => {
+  ticketsRef.current = tickets;
+
+  const toast = useCallback((kind: ToastMsg["kind"], text: string, action?: ToastMsg["action"]) => {
     const id = toastId.current++;
-    setToasts((t) => [...t.slice(-3), { id, kind, text }]);
-    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4200);
+    setToasts((t) => [...t.slice(-3), { id, kind, text, action }]);
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), action ? 6500 : 4200);
   }, []);
   const dismissToast = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), []);
 
-  // arranque: leer IndexedDB y sembrar demos la primera vez
+  const log = useCallback((text: string) => {
+    setSyncLog((l) => [`${new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })} · ${text}`, ...l].slice(0, 8));
+  }, []);
+
+  // ── arranque: IndexedDB + demos ──────────────────────────────────────────
   useEffect(() => {
     if (bootRef.current) return;
     bootRef.current = true;
@@ -113,10 +141,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // tema + modo oscuro → variables CSS
+  // ── tema + modo oscuro → variables CSS ────────────────────────────────────
   const accent = useMemo(() => {
-    if (settings.theme === "custom") return settings.customColor || "#12a374";
-    return THEMES.find((t) => t.id === settings.theme)?.color || "#12a374";
+    if (settings.theme === "custom") return settings.customColor || "#0f9d63";
+    return THEMES.find((t) => t.id === settings.theme)?.color || "#0f9d63";
   }, [settings.theme, settings.customColor]);
 
   useEffect(() => {
@@ -126,7 +154,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     el.style.setProperty("--accent-soft", accent + "1f");
     el.style.setProperty("--accent-ink", readableOn(accent));
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", settings.dark ? "#14171a" : "#eef0ec");
+    if (meta) meta.setAttribute("content", settings.dark ? "#121417" : "#f2f3f1");
   }, [accent, settings.dark]);
 
   const setSettings = useCallback((p: Partial<Settings>) => {
@@ -136,7 +164,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
   }, []);
-
   const setCategories = useCallback((c: Category[]) => {
     setCategoriesState(c);
     save(LS.cats, c);
@@ -146,38 +173,191 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     save(LS.stores, s);
   }, []);
 
-  const addTicket = useCallback((t: Ticket) => {
-    setTickets((ts) => [t, ...ts]);
-    idbPut(t).catch(() => {});
+  // ── sincronización ────────────────────────────────────────────────────────
+  const pushAnnounce = useCallback(() => {
+    if (announceTimer.current) window.clearTimeout(announceTimer.current);
+    announceTimer.current = window.setTimeout(() => {
+      const manifest: Record<string, number> = {};
+      for (const t of ticketsRef.current) manifest[t.id] = t.updatedAt || t.createdAt;
+      syncRef.current?.announce(manifest, tombsRef.current);
+    }, 700);
   }, []);
-  const addTickets = useCallback((ts: Ticket[]) => {
-    setTickets((prev) => [...ts, ...prev]);
-    idbBulk(ts).catch(() => {});
+
+  const mergeRemote = useCallback(
+    (incoming: Ticket[]) => {
+      setTickets((prev) => {
+        const map = new Map(prev.map((t) => [t.id, t]));
+        let added = 0;
+        for (const t of incoming) {
+          const local = map.get(t.id);
+          if (!local || (t.updatedAt || 0) > (local.updatedAt || local.createdAt)) {
+            map.set(t.id, t);
+            added++;
+            idbPut(t).catch(() => {});
+          }
+        }
+        if (added) setLastSync(Date.now());
+        return [...map.values()].sort((a, b) => b.date.localeCompare(a.date));
+      });
+      pushAnnounce();
+    },
+    [pushAnnounce]
+  );
+
+  const applyTombstones = useCallback(
+    (tombs: Tombstone[]) => {
+      const known = new Set(tombsRef.current.map((t) => t.id));
+      const fresh = tombs.filter((t) => !known.has(t.id));
+      if (!fresh.length) return;
+      tombsRef.current = [...tombsRef.current, ...fresh].slice(-400);
+      save(LS.tombs, tombsRef.current);
+      setTickets((prev) => {
+        const ids = new Set(fresh.map((t) => t.id));
+        const next = prev.filter((t) => !ids.has(t.id));
+        for (const id of ids) idbDel(id).catch(() => {});
+        return next.length === prev.length ? prev : next;
+      });
+      pushAnnounce();
+    },
+    [pushAnnounce]
+  );
+
+  useEffect(() => {
+    if (!account || !ready) return;
+    let handle: SyncHandle | null = null;
+    let cancelled = false;
+    startSync(account, {
+      onStatus: (s) => setSyncStatus(s),
+      onPeers: (_n, names) => setPeers(names),
+      onRemoteTickets: (ts) => mergeRemote(ts),
+      onRemoteTombstones: (tombs) => applyTombstones(tombs),
+      onNeedIds: (ids) => {
+        const want = new Set(ids);
+        return ticketsRef.current.filter((t) => want.has(t.id));
+      },
+      onLog: log,
+    })
+      .then((h) => {
+        if (cancelled) {
+          h.close();
+          return;
+        }
+        handle = h;
+        syncRef.current = h;
+        const manifest: Record<string, number> = {};
+        for (const t of ticketsRef.current) manifest[t.id] = t.updatedAt || t.createdAt;
+        h.announce(manifest, tombsRef.current);
+      })
+      .catch(() => {
+        setSyncStatus("off");
+        toast("warn", "No se pudo iniciar la sincronización.");
+      });
+    return () => {
+      cancelled = true;
+      handle?.close();
+      if (syncRef.current === handle) syncRef.current = null;
+    };
+  }, [account, ready, mergeRemote, applyTombstones, log, toast]);
+
+  const signIn = useCallback(
+    async (name: string, password: string) => {
+      const acc = await provisionAccount(name, password);
+      save(LS.account, acc);
+      setAccount(acc);
+      setSyncStatus("connecting");
+    },
+    []
+  );
+
+  const signOut = useCallback(() => {
+    syncRef.current?.close();
+    syncRef.current = null;
+    setSyncStatus("off");
+    setPeers([]);
+    setAccount(null);
+    localStorage.removeItem(LS.account);
   }, []);
-  const updateTicket = useCallback((t: Ticket) => {
-    setTickets((ts) => ts.map((x) => (x.id === t.id ? t : x)));
-    idbPut(t).catch(() => {});
-  }, []);
-  const deleteTicket = useCallback((id: string) => {
-    setTickets((ts) => ts.filter((x) => x.id !== id));
-    idbDel(id).catch(() => {});
-  }, []);
+
+  const syncNow = useCallback(() => {
+    pushAnnounce();
+    toast("info", "Sincronización solicitada.");
+  }, [pushAnnounce, toast]);
+
+  // ── mutaciones locales (sellan updatedAt y anuncian) ─────────────────────
+  const addTicket = useCallback(
+    (t: Ticket) => {
+      const stamped = { ...t, updatedAt: Date.now() };
+      setTickets((ts) => [stamped, ...ts]);
+      idbPut(stamped).catch(() => {});
+      pushAnnounce();
+    },
+    [pushAnnounce]
+  );
+  const addTickets = useCallback(
+    (ts: Ticket[]) => {
+      const now = Date.now();
+      const stamped = ts.map((t) => ({ ...t, updatedAt: t.updatedAt || now }));
+      setTickets((prev) => {
+        const map = new Map(prev.map((x) => [x.id, x]));
+        for (const t of stamped) map.set(t.id, t);
+        return [...map.values()].sort((a, b) => b.date.localeCompare(a.date));
+      });
+      idbBulk(stamped).catch(() => {});
+      pushAnnounce();
+    },
+    [pushAnnounce]
+  );
+  const updateTicket = useCallback(
+    (t: Ticket) => {
+      const stamped = { ...t, updatedAt: Date.now() };
+      setTickets((ts) => ts.map((x) => (x.id === t.id ? stamped : x)));
+      idbPut(stamped).catch(() => {});
+      pushAnnounce();
+    },
+    [pushAnnounce]
+  );
+  const deleteTicket = useCallback(
+    (id: string) => {
+      setTickets((ts) => ts.filter((x) => x.id !== id));
+      idbDel(id).catch(() => {});
+      tombsRef.current = [...tombsRef.current, { id, at: Date.now() }].slice(-400);
+      save(LS.tombs, tombsRef.current);
+      pushAnnounce();
+    },
+    [pushAnnounce]
+  );
+  const restoreTicket = useCallback(
+    (t: Ticket) => {
+      const stamped = { ...t, updatedAt: Date.now() };
+      tombsRef.current = tombsRef.current.filter((x) => x.id !== t.id);
+      save(LS.tombs, tombsRef.current);
+      setTickets((ts) => [stamped, ...ts]);
+      idbPut(stamped).catch(() => {});
+      pushAnnounce();
+    },
+    [pushAnnounce]
+  );
 
   const clearAll = useCallback(async () => {
     try {
       await idbClear();
     } catch {}
     setTickets([]);
-  }, []);
+    pushAnnounce();
+  }, [pushAnnounce]);
 
-  const loadDemo = useCallback(async () => {
-    const demos = buildDemoTickets();
-    setTickets((prev) => [...demos, ...prev]);
-    try {
-      await idbBulk(demos);
-    } catch {}
-    return demos.length;
-  }, []);
+  const loadDemo = useCallback(
+    async () => {
+      const demos = buildDemoTickets().map((d) => ({ ...d, updatedAt: Date.now() }));
+      setTickets((prev) => [...demos, ...prev]);
+      try {
+        await idbBulk(demos);
+      } catch {}
+      pushAnnounce();
+      return demos.length;
+    },
+    [pushAnnounce]
+  );
 
   const value: AppCtx = {
     ready,
@@ -187,10 +367,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     settings,
     toasts,
     accent,
+    account,
+    syncStatus,
+    peers,
+    lastSync,
+    syncLog,
     addTicket,
     addTickets,
     updateTicket,
     deleteTicket,
+    restoreTicket,
     clearAll,
     loadDemo,
     setCategories,
@@ -198,6 +384,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSettings,
     toast,
     dismissToast,
+    signIn,
+    signOut,
+    syncNow,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

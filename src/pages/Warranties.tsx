@@ -5,7 +5,7 @@ import { ShieldCheck, Clock, AlertTriangle, Package, ScanLine } from "lucide-rea
 import { addMonths, differenceInDays, parseISO, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useApp } from "../lib/store";
-import { fmtEUR, cls } from "../lib/util";
+import { fmtEUR, cls, relDate } from "../lib/util";
 import { Button, EmptyState, Chip } from "../components/ui";
 
 interface Warranty {
@@ -125,7 +125,7 @@ export default function Warranties() {
                       </Chip>
                     </div>
                     <p className="text-[12.5px] text-mut mt-1">
-                      {w.store} · comprado el {format(parseISO(w.purchase), "d MMM yyyy", { locale: es })} · {w.months} meses de garantía · {fmtEUR(w.price)}
+                      {w.store} · comprado {relDate(w.purchase)} · {w.months} meses de garantía · {fmtEUR(w.price)}
                     </p>
                     <div className="mt-2.5 flex items-center gap-3">
                       <div className="flex-1 h-1.5 rounded-full bg-card2 overflow-hidden">

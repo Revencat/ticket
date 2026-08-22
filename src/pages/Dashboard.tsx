@@ -2,12 +2,12 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from "recharts";
-import { format, parseISO, startOfMonth, subMonths } from "date-fns";
+import { format, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
-import { ScanLine, Wallet, Receipt as ReceiptIcon, Percent, ShieldCheck, ArrowRight, AlertTriangle } from "lucide-react";
+import { ScanLine, Wallet, Receipt as ReceiptIcon, Percent, ShieldCheck, ArrowRight, ChevronRight, AlertTriangle } from "lucide-react";
 import { useApp } from "../lib/store";
-import { fmtEUR, fmtDate, fmtMonth, cls } from "../lib/util";
-import { EmptyState, Button, Dot, CountUp } from "../components/ui";
+import { fmtEUR, cls, relDate } from "../lib/util";
+import { CatIcon, EmptyState, Button, CountUp } from "../components/ui";
 
 export default function Dashboard() {
   const { tickets, categories, accent } = useApp();
@@ -26,17 +26,13 @@ export default function Dashboard() {
     const months = Array.from({ length: 6 }, (_, i) => {
       const d = subMonths(now, 5 - i);
       const key = format(d, "yyyy-MM");
-      return {
-        label: format(d, "MMM", { locale: es }),
-        total: Math.round(sum(inMonth(key)) * 100) / 100,
-      };
+      return { label: format(d, "MMM", { locale: es }), total: Math.round(sum(inMonth(key)) * 100) / 100 };
     });
 
     const byCat = categories
       .map((c) => ({ ...c, total: sum(cur.filter((t) => t.category === c.id)) }))
       .filter((c) => c.total > 0);
 
-    // garantías
     let active = 0, soon = 0;
     for (const t of tickets)
       for (const it of t.items) {
@@ -58,7 +54,7 @@ export default function Dashboard() {
       byCat,
       active,
       soon,
-      recent: [...tickets].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5),
+      recent: [...tickets].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6),
     };
   }, [tickets, categories]);
 
@@ -70,30 +66,30 @@ export default function Dashboard() {
         icon={<ReceiptIcon size={26} />}
         title="Todavía no hay tickets archivados"
         desc="Escanea tu primer ticket con la cámara o sube una foto: TicketBox detectará el total, la fecha y la tienda en tu propio dispositivo."
-        action={
-          <Link to="/scan">
-            <Button size="lg"><ScanLine size={17} /> Escanear mi primer ticket</Button>
-          </Link>
-        }
+        action={<Link to="/scan"><Button size="lg"><ScanLine size={17} /> Escanear mi primer ticket</Button></Link>}
       />
     );
   }
 
   const tiles = [
-    { label: `Gasto en ${stats.monthLabel}`, num: stats.curSum, fmt: fmtEUR, icon: Wallet, extra: stats.delta !== null ? (
+    {
+      label: `Gasto en ${stats.monthLabel}`, num: stats.curSum, fmt: fmtEUR, icon: Wallet,
+      extra: stats.delta !== null ? (
         <span className={cls("text-[12px] font-mono font-semibold", stats.delta > 0 ? "text-danger" : "text-ok")}>
           {stats.delta > 0 ? "▲" : "▼"} {Math.abs(stats.delta).toFixed(0)}% vs mes anterior
         </span>
-      ) : <span className="text-[12px] text-mut">sin datos del mes anterior</span> },
+      ) : <span className="text-[12px] text-mut">sin datos del mes anterior</span>,
+    },
     { label: "Tickets este mes", num: stats.curCount, icon: ReceiptIcon, extra: <span className="text-[12px] text-mut">{tickets.length} en total</span> },
     { label: "Ticket medio", num: stats.avg, fmt: fmtEUR, icon: Percent, extra: <span className="text-[12px] text-mut">en el mes en curso</span> },
-    { label: "Garantías activas", num: stats.active, icon: ShieldCheck, extra: stats.soon > 0 ? (
-        <span className="text-[12px] font-mono font-semibold text-warn">{stats.soon} caducan pronto</span>
-      ) : <span className="text-[12px] text-mut">todo en vigor</span> },
+    {
+      label: "Garantías activas", num: stats.active, icon: ShieldCheck,
+      extra: stats.soon > 0 ? <span className="text-[12px] font-mono font-semibold text-warn">{stats.soon} caducan pronto</span> : <span className="text-[12px] text-mut">todo en vigor</span>,
+    },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* KPIs */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {tiles.map((t, i) => (
@@ -101,24 +97,25 @@ export default function Dashboard() {
             key={t.label}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="bg-card border border-line rounded-xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all"
+            transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 26 }}
+            whileHover={{ y: -3 }}
+            className="bg-card border border-line rounded-xl p-4 hover:shadow-md hover:border-line2 transition-all"
           >
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-display font-semibold uppercase tracking-[0.08em] text-mut">{t.label}</p>
+              <p className="text-[12.5px] font-medium text-mut">{t.label}</p>
               <t.icon size={16} className="text-acc" />
             </div>
-            <p className="font-mono font-semibold text-[22px] mt-2 tracking-tight">
+            <p className="font-mono font-semibold text-[22px] mt-1.5 tracking-tight">
               <CountUp value={t.num} format={t.fmt} />
             </p>
-            <div className="mt-1">{t.extra}</div>
+            <div className="mt-0.5">{t.extra}</div>
           </motion.div>
         ))}
       </div>
 
       {/* gráficos */}
       <div className="grid lg:grid-cols-5 gap-3">
-        <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="lg:col-span-3 bg-card border border-line rounded-xl p-5">
+        <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="lg:col-span-3 bg-card border border-line rounded-xl p-5">
           <div className="flex items-baseline justify-between mb-4">
             <h2 className="font-display font-bold text-[15px]">Últimos 6 meses</h2>
             <span className="text-[12px] text-mut font-mono">total por mes</span>
@@ -136,7 +133,7 @@ export default function Dashboard() {
                   labelStyle={{ color: "var(--muted)", fontFamily: "var(--font-mono)" }}
                 />
                 <Bar dataKey="total" radius={[6, 6, 0, 0]} maxBarSize={46}>
-                  {stats.months.map((m, i) => (
+                  {stats.months.map((_, i) => (
                     <Cell key={i} fill={i === stats.months.length - 1 ? accent : accent + "55"} />
                   ))}
                 </Bar>
@@ -145,7 +142,7 @@ export default function Dashboard() {
           </div>
         </motion.section>
 
-        <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="lg:col-span-2 bg-card border border-line rounded-xl p-5">
+        <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }} className="lg:col-span-2 bg-card border border-line rounded-xl p-5">
           <div className="flex items-baseline justify-between mb-2">
             <h2 className="font-display font-bold text-[15px]">Por categoría</h2>
             <span className="text-[12px] text-mut font-mono">{stats.monthLabel}</span>
@@ -169,7 +166,7 @@ export default function Dashboard() {
               <ul className="flex-1 space-y-2.5 min-w-0">
                 {stats.byCat.map((c) => (
                   <li key={c.id} className="flex items-center gap-2 text-[13px]">
-                    <Dot color={c.color} />
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.color }} />
                     <span className="text-mut truncate">{c.name}</span>
                     <span className="ml-auto font-mono font-semibold">{fmtEUR(c.total)}</span>
                   </li>
@@ -180,61 +177,42 @@ export default function Dashboard() {
         </motion.section>
       </div>
 
-      {/* recién archivados (cinta de recibos) + aviso garantías */}
+      {/* actividad reciente + garantías */}
       <div className="grid lg:grid-cols-5 gap-3">
-        <section className="lg:col-span-3">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="font-display font-bold text-[15px]">Recién archivados</h2>
+        <section className="lg:col-span-3 bg-card border border-line rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 pt-4 pb-2">
+            <h2 className="font-display font-bold text-[15px]">Actividad reciente</h2>
             <Link to="/tickets" className="text-[12.5px] text-acc font-medium inline-flex items-center gap-1 hover:gap-2 transition-all hover:underline">
               Ver todos <ArrowRight size={13} />
             </Link>
           </div>
-          <div className="flex gap-4 overflow-x-auto receipts-scroll snap-x snap-mandatory pb-2 pt-2 px-1">
+          <ul className="pb-2">
             {stats.recent.map((t, i) => {
               const cat = catById.get(t.category);
-              const rot = ["-rotate-2", "rotate-1", "rotate-2"][i % 3];
+              const color = cat?.color || "#64748b";
               return (
-                <motion.div
-                  key={t.id}
-                  initial={{ opacity: 0, y: 24 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-20px" }}
-                  transition={{ delay: i * 0.06, type: "spring", stiffness: 260, damping: 24 }}
-                  className="snap-start shrink-0"
-                >
-                  <Link to="/tickets" className={cls("block w-[196px] transition-all duration-300 ease-out cursor-pointer", rot, "hover:rotate-0 hover:-translate-y-2 group")}>
-                    <div className="relative bg-[#fbfaf3] text-[#2b2f2e] rounded-t-lg px-3.5 pt-3 pb-2.5 shadow-[0_10px_22px_-12px_rgba(0,0,0,0.4)] group-hover:shadow-[0_20px_34px_-14px_rgba(0,0,0,0.5)] transition-shadow">
-                      <span className="absolute top-0 left-0 right-0 h-[3px] rounded-t-lg" style={{ background: cat?.color || "#64748b" }} />
-                      <p className="font-mono font-bold text-[12.5px] uppercase tracking-wide truncate">{t.store}</p>
-                      <p className="font-mono text-[10.5px] text-[#8d918c] mt-0.5">{fmtDate(t.date)}</p>
-                      <div className="border-t border-dashed border-[#d6d4c7] my-2" />
-                      {t.items.slice(0, 2).map((it) => (
-                        <div key={it.id} className="flex justify-between gap-2 font-mono text-[10.5px] leading-[1.6]">
-                          <span className="truncate">{it.qty > 1 ? `${it.qty}× ` : ""}{it.name}</span>
-                          <span className="shrink-0">{fmtEUR(it.qty * it.price)}</span>
-                        </div>
-                      ))}
-                      {t.items.length === 0 && <p className="font-mono text-[10.5px] text-[#8d918c]">sin líneas</p>}
-                      {t.items.length > 2 && <p className="font-mono text-[10px] text-[#8d918c] mt-0.5">+{t.items.length - 2} artículos más…</p>}
-                      <div className="border-t border-dashed border-[#d6d4c7] my-2" />
-                      <div className="flex items-baseline justify-between">
-                        <span className="font-mono font-bold text-[10px] tracking-[0.18em]">TOTAL</span>
-                        <span className="font-mono font-bold text-[15px]">{fmtEUR(t.total)}</span>
-                      </div>
-                      <div className="barcode mx-auto mt-2.5 h-[14px] w-[68%] opacity-80" />
+                <motion.li key={t.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.04 }}>
+                  <Link to="/tickets" className="group flex items-center gap-3 px-5 py-2.5 hover:bg-card2 transition-colors">
+                    <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-105" style={{ background: color + "18", color }}>
+                      <CatIcon id={t.category} size={16} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13.5px] font-semibold truncate group-hover:text-acc transition-colors">{t.store}</p>
+                      <p className="text-[11.5px] text-mut">{relDate(t.date)} · {cat?.name || "Otros"} · {t.items.length} art.</p>
                     </div>
-                    <div className="receipt-zigzag w-full drop-shadow-[0_6px_6px_rgba(0,0,0,0.18)]" />
+                    <span className="font-mono font-semibold text-[13.5px] shrink-0">{fmtEUR(t.total)}</span>
+                    <ChevronRight size={15} className="text-mut/50 group-hover:text-acc group-hover:translate-x-0.5 transition-all shrink-0" />
                   </Link>
-                </motion.div>
+                </motion.li>
               );
             })}
-          </div>
+          </ul>
         </section>
 
-        <section className="lg:col-span-2 space-y-3">
+        <div className="lg:col-span-2 space-y-3">
           <div className="bg-card border border-line rounded-xl p-5">
             <h2 className="font-display font-bold text-[15px] mb-3">Mes a mes</h2>
-            <ul className="space-y-2">
+            <ul className="space-y-2.5">
               {stats.months.slice().reverse().slice(0, 4).map((m) => {
                 const max = Math.max(...stats.months.map((x) => x.total), 1);
                 return (
@@ -258,7 +236,7 @@ export default function Dashboard() {
           </div>
 
           {stats.soon > 0 ? (
-            <Link to="/garantias" className="block bg-warn/10 border border-warn/30 rounded-xl p-4 hover:bg-warn/15 transition-colors">
+            <Link to="/garantias" className="block bg-warn/8 border border-warn/25 rounded-xl p-4 hover:bg-warn/12 transition-colors">
               <div className="flex items-start gap-3">
                 <AlertTriangle size={18} className="text-warn shrink-0 mt-0.5" />
                 <div>
@@ -268,7 +246,7 @@ export default function Dashboard() {
               </div>
             </Link>
           ) : (
-            <div className="bg-ok/8 border border-ok/25 rounded-xl p-4 flex items-start gap-3">
+            <div className="bg-ok/6 border border-ok/20 rounded-xl p-4 flex items-start gap-3">
               <ShieldCheck size={18} className="text-ok shrink-0 mt-0.5" />
               <div>
                 <p className="font-display font-semibold text-[14px] text-ok">Garantías bajo control</p>
@@ -276,7 +254,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-        </section>
+        </div>
       </div>
     </div>
   );

@@ -1,11 +1,13 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Moon, Sun, Plus, Trash2, Sparkles, Database, Palette, Store as StoreIcon, Tag, Download, Check } from "lucide-react";
 import { useApp, THEMES } from "../lib/store";
 import { cls, uid } from "../lib/util";
-import { Button, Toggle, Modal, Field, inputCls, CatIcon } from "../components/ui";
+import { Button, Toggle, Modal, inputCls, CatIcon } from "../components/ui";
 
 export default function Settings() {
   const { settings, setSettings, categories, setCategories, stores, setStores, tickets, loadDemo, clearAll, toast, accent } = useApp();
+  const nav = useNavigate();
   const [confirmWipe, setConfirmWipe] = useState(false);
 
   const usedCategories = new Set(tickets.map((t) => t.category));
@@ -15,7 +17,7 @@ export default function Settings() {
       {/* Apariencia */}
       <section className="bg-card border border-line rounded-xl p-5">
         <h2 className="font-display font-bold text-[15px] flex items-center gap-2 mb-4"><Palette size={16} className="text-acc" /> Apariencia</h2>
-        <p className="text-[11px] font-display font-semibold uppercase tracking-[0.08em] text-mut mb-2">Color de acento · 6 temas + propio</p>
+        <p className="text-[13px] font-medium text-mut mb-2">Color de acento · 6 temas + propio</p>
         <div className="flex flex-wrap gap-2.5">
           {THEMES.map((t) => {
             const active = settings.theme === t.id;
@@ -26,7 +28,7 @@ export default function Settings() {
                 onClick={() => setSettings({ theme: t.id })}
                 className={cls(
                   "flex items-center gap-2 pl-1.5 pr-3 h-9 rounded-full border transition-all cursor-pointer",
-                  active ? "border-acc bg-acc/10 shadow-sm" : "border-line hover:border-line2"
+                  active ? "border-acc bg-acc/8" : "border-line hover:border-line2"
                 )}
                 title={t.name}
               >
@@ -37,7 +39,7 @@ export default function Settings() {
                 {t.id === "custom" && (
                   <input
                     type="color"
-                    value={settings.customColor || "#12a374"}
+                    value={settings.customColor || "#0f9d63"}
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => setSettings({ theme: "custom", customColor: e.target.value })}
                     className="w-6 h-6 rounded-full cursor-pointer border-0 bg-transparent p-0"
@@ -159,7 +161,7 @@ export default function Settings() {
           <Button variant="outline" onClick={async () => { const n = await loadDemo(); toast("ok", `${n} tickets de ejemplo añadidos.`); }}>
             <Sparkles size={15} /> Añadir datos de ejemplo
           </Button>
-          <Button variant="outline" onClick={() => toast("info", "Usa la página Exportar para descargar el Excel.")}>
+          <Button variant="outline" onClick={() => nav("/exportar")}>
             <Download size={15} /> Exportar todo
           </Button>
           <Button variant="danger" onClick={() => setConfirmWipe(true)}>
@@ -172,7 +174,7 @@ export default function Settings() {
         <div className="p-6">
           <h3 className="font-display font-bold text-lg">¿Borrar {tickets.length} tickets?</h3>
           <p className="text-mut text-sm mt-2 leading-relaxed">
-            Se eliminarán los tickets y sus fotos de IndexedDB. Esta acción no se puede deshacer; si quieres conservar los datos, expórtalos a Excel antes.
+            Se eliminarán los tickets y sus fotos de este dispositivo. Esta acción no se puede deshacer; si quieres conservar los datos, expórtalos a Excel antes.
           </p>
           <div className="flex justify-end gap-2 mt-6">
             <Button variant="ghost" onClick={() => setConfirmWipe(false)}>Cancelar</Button>
@@ -181,7 +183,7 @@ export default function Settings() {
               onClick={async () => {
                 await clearAll();
                 setConfirmWipe(false);
-                toast("info", "Archivador vacío. Los datos de ejemplo volverán si recargas.");
+                toast("info", "Archivador vacío en este dispositivo.");
               }}
             >
               <Trash2 size={15} /> Sí, borrar todo

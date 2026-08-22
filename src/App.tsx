@@ -10,7 +10,7 @@ import Settings from "./pages/Settings";
 // Las páginas con dependencias pesadas (Tesseract, ExcelJS, MQTT) se cargan bajo demanda
 const Scan = React.lazy(() => import("./pages/Scan"));
 const Export = React.lazy(() => import("./pages/Export"));
-const LinkPage = React.lazy(() => import("./pages/LinkPage"));
+const Cuenta = React.lazy(() => import("./pages/Cuenta"));
 
 const PageFallback = (
   <div className="flex items-center justify-center py-24">
@@ -30,7 +30,7 @@ export default function App() {
               <Route path="/scan" element={<Scan />} />
               <Route path="/garantias" element={<Warranties />} />
               <Route path="/exportar" element={<Export />} />
-              <Route path="/vincular" element={<LinkPage />} />
+              <Route path="/cuenta" element={<Cuenta />} />
               <Route path="/ajustes" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

@@ -3,39 +3,35 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --bg: #eef0ec;
-  --card: #fbfcfa;
-  --card2: #f2f4f0;
-  --ink: #1c211f;
-  --muted: #67716c;
-  --line: #d8ddd6;
-  --line2: #c6cdc4;
-  --accent: #12a374;
-  --accent-soft: #12a3741a;
+  --bg: #f2f3f1;
+  --card: #ffffff;
+  --card2: #f6f7f5;
+  --ink: #1b1e21;
+  --muted: #6a7278;
+  --line: #e6e8e4;
+  --line2: #d7dad4;
+  --accent: #0f9d63;
+  --accent-soft: #0f9d631f;
   --accent-ink: #ffffff;
-  --ok: #1d9e63;
-  --warn: #c07f10;
-  --danger: #d14343;
-  --sidebar: #171b19;
-  --sidebar-ink: #e8ebe6;
-  --sidebar-mut: #8b948e;
+  --ok: #188a54;
+  --warn: #b17d10;
+  --danger: #cf4444;
+  --photo-bg: #f4f4f1;
 }
 
 .dark {
-  --bg: #14171a;
-  --card: #1c2023;
-  --card2: #22272b;
-  --ink: #e9ecea;
-  --muted: #939c97;
-  --line: #2c3236;
-  --line2: #3a4147;
+  --bg: #121417;
+  --card: #191c20;
+  --card2: #1f2328;
+  --ink: #e7e9ea;
+  --muted: #929aa1;
+  --line: #262b31;
+  --line2: #333a41;
   --accent-ink: #ffffff;
-  --ok: #34c082;
-  --warn: #e0a33c;
-  --danger: #ef6a6a;
-  --sidebar: #0f1214;
-  --sidebar-ink: #e6eae5;
-  --sidebar-mut: #79837d;
+  --ok: #3ac98c;
+  --warn: #e0b04b;
+  --danger: #ee6f6f;
+  --photo-bg: #20242a;
 }
 
 @theme inline {
@@ -51,9 +47,7 @@
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
-  --color-side: var(--sidebar);
-  --color-sideink: var(--sidebar-ink);
-  --color-sidemut: var(--sidebar-mut);
+  --color-photobg: var(--photo-bg);
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
@@ -70,80 +64,24 @@ body {
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-/* papel punteado de fondo */
-.paper-dots {
-  background-image: radial-gradient(var(--line) 1px, transparent 1px);
-  background-size: 22px 22px;
-}
-
-/* dock inferior: respeto al área segura de iOS */
+/* área segura iOS para la dock */
 .dock-safe {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
 }
 
-/* borde de ticket: muescas laterales + separador troquelado */
-.stub {
-  position: relative;
-}
-.stub .notch {
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  border-radius: 9999px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  left: 87px;
-  z-index: 1;
-}
-.stub .notch-t {
-  top: -9px;
-}
-.stub .notch-b {
-  bottom: -9px;
-}
-
-.receipt-tear {
-  height: 10px;
-  background: conic-gradient(from 135deg at 50% 0, var(--card) 90deg, transparent 0) top / 16px 10px repeat-x;
-}
-
-/* borde troquelado inferior de los mini-recibos del panel */
-.receipt-zigzag {
-  height: 8px;
-  background: conic-gradient(from 135deg at 50% 0, #fbfaf3 90deg, transparent 0) top / 12px 8px repeat-x;
-}
-
-.barcode {
-  background: repeating-linear-gradient(
-    90deg,
-    #2b2f2e 0 2px,
-    transparent 2px 5px,
-    #2b2f2e 5px 6px,
-    transparent 6px 9px,
-    #2b2f2e 9px 12px,
-    transparent 12px 14px
-  );
-}
-
-.receipts-scroll {
-  scrollbar-width: none;
-}
-.receipts-scroll::-webkit-scrollbar {
-  display: none;
-}
-
 @keyframes scanline {
   0% {
-    top: 0%;
+    top: 2%;
   }
   100% {
-    top: calc(100% - 4px);
+    top: 96%;
   }
 }
 .scanline {
-  animation: scanline 1.6s ease-in-out infinite alternate;
+  animation: scanline 1.7s ease-in-out infinite alternate;
 }
 
 @keyframes pulse-soft {
@@ -152,16 +90,16 @@ body {
     opacity: 1;
   }
   50% {
-    opacity: 0.45;
+    opacity: 0.4;
   }
 }
 .pulse-soft {
-  animation: pulse-soft 1.8s ease-in-out infinite;
+  animation: pulse-soft 1.6s ease-in-out infinite;
 }
 
 @keyframes print-in {
   from {
-    transform: translateY(-14px);
+    transform: translateY(-12px);
     opacity: 0;
     clip-path: inset(0 0 100% 0);
   }
@@ -172,7 +110,7 @@ body {
   }
 }
 .print-in {
-  animation: print-in 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: print-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
 ::-webkit-scrollbar {
@@ -195,4 +133,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .dark input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
+}
+
+input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
 }

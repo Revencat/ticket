@@ -30,15 +30,15 @@ export function Button({
       disabled={disabled}
       onClick={onClick}
       className={cls(
-        "inline-flex items-center justify-center gap-2 font-display font-semibold rounded-lg transition-all duration-150 active:scale-[0.97] disabled:opacity-45 disabled:pointer-events-none cursor-pointer select-none",
+        "inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-150 active:scale-[0.97] disabled:opacity-45 disabled:pointer-events-none cursor-pointer select-none",
         size === "sm" && "text-[13px] px-3 h-8",
         size === "md" && "text-sm px-4 h-10",
         size === "lg" && "text-[15px] px-5 h-12",
-        variant === "primary" && "bg-acc text-accink shadow-sm hover:brightness-110",
+        variant === "primary" && "bg-acc text-accink hover:brightness-110",
         variant === "outline" && "border border-line2 text-ink hover:bg-card2 bg-card",
         variant === "ghost" && "text-mut hover:text-ink hover:bg-card2",
-        variant === "soft" && "bg-acc/12 text-acc hover:bg-acc/20",
-        variant === "danger" && "bg-danger/12 text-danger hover:bg-danger/20",
+        variant === "soft" && "bg-acc/10 text-acc hover:bg-acc/18",
+        variant === "danger" && "bg-danger/10 text-danger hover:bg-danger/18",
         className
       )}
     >
@@ -67,7 +67,7 @@ export function IconBtn({
       onClick={onClick}
       className={cls(
         "inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors cursor-pointer",
-        danger ? "text-mut hover:text-danger hover:bg-danger/12" : "text-mut hover:text-ink hover:bg-card2",
+        danger ? "text-mut hover:text-danger hover:bg-danger/10" : "text-mut hover:text-ink hover:bg-card2",
         className
       )}
     >
@@ -78,20 +78,13 @@ export function IconBtn({
 
 /* ── Chips / badges ──────────────────────────────────────────────────────── */
 export function Chip({ children, color, onRemove }: { children: React.ReactNode; color?: string; onRemove?: () => void }) {
-  const isVar = color?.startsWith("var(");
+  const style = color
+    ? color.startsWith("#")
+      ? { background: color + "14", color, borderColor: color + "38" }
+      : { background: `color-mix(in srgb, ${color} 12%, transparent)`, color, borderColor: `color-mix(in srgb, ${color} 30%, transparent)` }
+    : { background: "var(--card2)", color: "var(--muted)", borderColor: "var(--line)" };
   return (
-    <span
-      className="inline-flex items-center gap-1.5 px-2.5 h-6 rounded-md text-[12px] font-medium border"
-      style={
-        color
-          ? {
-              background: isVar ? `color-mix(in srgb, ${color} 12%, transparent)` : color + "1a",
-              color,
-              borderColor: isVar ? `color-mix(in srgb, ${color} 32%, transparent)` : color + "44",
-            }
-          : { background: "var(--card2)", color: "var(--muted)", borderColor: "var(--line)" }
-      }
-    >
+    <span className="inline-flex items-center gap-1.5 px-2.5 h-6 rounded-md text-[12px] font-medium border whitespace-nowrap" style={style}>
       {children}
       {onRemove && (
         <button onClick={onRemove} className="cursor-pointer hover:opacity-60" aria-label="Quitar filtro">
@@ -122,25 +115,25 @@ export function CatIcon({ id, size = 16, className }: { id: string; size?: numbe
 }
 
 /* ── Logo ────────────────────────────────────────────────────────────────── */
-export function Logo({ size = 34 }: { size?: number }) {
+export function Logo({ size = 30 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 96 96" aria-hidden>
       <rect width="96" height="96" rx="22" fill="var(--accent)" />
-      <path d="M28 18h40v54l-5-4-5 4-5-4-5 4-5-4-5 4-5-4-5 4z" fill="#fbfcfa" />
-      <path d="M36 31h24M36 39h24M36 47h14" stroke="#8b958f" strokeWidth="4" strokeLinecap="round" />
-      <rect x="36" y="55" width="24" height="7" rx="2" fill="var(--accent)" />
+      <path d="M30 20h36v52l-4.5-3.6-4.5 3.6-4.5-3.6-4.5 3.6-4.5-3.6-4.5 3.6-4.5-3.6L30 72z" fill="#fbfcfa" />
+      <path d="M37 32h22M37 40h22M37 48h13" stroke="#9aa39d" strokeWidth="4.5" strokeLinecap="round" />
+      <rect x="37" y="55" width="22" height="7" rx="2" fill="var(--accent)" />
     </svg>
   );
 }
 
 /* ── Formularios ─────────────────────────────────────────────────────────── */
 export const inputCls =
-  "w-full h-10 px-3 rounded-lg bg-card border border-line text-sm text-ink placeholder:text-mut/70 outline-none transition-shadow focus:border-acc focus:ring-2 focus:ring-acc/25";
+  "w-full h-10 px-3 rounded-lg bg-card border border-line2 text-sm text-ink placeholder:text-mut/60 outline-none transition-all focus:border-acc focus:ring-2 focus:ring-acc/20";
 
 export function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
   return (
     <label className="block">
-      <span className="block text-[11px] font-display font-semibold uppercase tracking-[0.08em] text-mut mb-1.5">{label}</span>
+      <span className="block text-[13px] font-medium text-mut mb-1.5">{label}</span>
       {children}
       {hint && <span className="block text-[12px] text-mut mt-1">{hint}</span>}
     </label>
@@ -155,33 +148,15 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
       aria-checked={on}
       aria-label={label}
       onClick={() => onChange(!on)}
-      className={cls(
-        "relative w-11 h-6 rounded-full transition-colors cursor-pointer shrink-0",
-        on ? "bg-acc" : "bg-line2"
-      )}
+      className={cls("relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer shrink-0", on ? "bg-acc" : "bg-line2")}
     >
-      <span
-        className={cls(
-          "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all",
-          on ? "left-[22px]" : "left-0.5"
-        )}
-      />
+      <span className={cls("absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200", on ? "left-[22px]" : "left-0.5")} />
     </button>
   );
 }
 
 /* ── Modal ───────────────────────────────────────────────────────────────── */
-export function Modal({
-  open,
-  onClose,
-  children,
-  wide,
-}: {
-  open: boolean;
-  onClose: () => void;
-  children: React.ReactNode;
-  wide?: boolean;
-}) {
+export function Modal({ open, onClose, children, wide }: { open: boolean; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   useEffect(() => {
     if (!open) return;
     const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -203,10 +178,7 @@ export function Modal({
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 18, opacity: 0, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 380, damping: 32 }}
-            className={cls(
-              "w-full bg-card border border-line rounded-xl shadow-2xl max-h-[88vh] overflow-auto",
-              wide ? "max-w-4xl" : "max-w-lg"
-            )}
+            className={cls("w-full bg-card border border-line rounded-xl shadow-2xl max-h-[88vh] overflow-auto", wide ? "max-w-4xl" : "max-w-lg")}
           >
             {children}
           </motion.div>
@@ -217,20 +189,10 @@ export function Modal({
 }
 
 /* ── Estado vacío ────────────────────────────────────────────────────────── */
-export function EmptyState({
-  icon,
-  title,
-  desc,
-  action,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-  action?: React.ReactNode;
-}) {
+export function EmptyState({ icon, title, desc, action }: { icon: React.ReactNode; title: string; desc: string; action?: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center text-center py-16 px-6 border border-dashed border-line2 rounded-xl bg-card/60">
-      <div className="w-14 h-14 rounded-xl bg-acc/12 text-acc flex items-center justify-center mb-4">{icon}</div>
+    <div className="flex flex-col items-center justify-center text-center py-16 px-6 border border-dashed border-line2 rounded-xl bg-card/70">
+      <div className="w-12 h-12 rounded-xl bg-acc/10 text-acc flex items-center justify-center mb-4">{icon}</div>
       <h3 className="font-display font-semibold text-lg text-ink">{title}</h3>
       <p className="text-mut text-sm mt-1.5 max-w-sm leading-relaxed">{desc}</p>
       {action && <div className="mt-5">{action}</div>}
@@ -243,7 +205,7 @@ export function ToastHost({
   toasts,
   dismiss,
 }: {
-  toasts: { id: number; kind: "ok" | "warn" | "danger" | "info"; text: string }[];
+  toasts: { id: number; kind: "ok" | "warn" | "danger" | "info"; text: string; action?: { label: string; run: () => void } }[];
   dismiss: (id: number) => void;
 }) {
   const icons = {
@@ -253,7 +215,7 @@ export function ToastHost({
     info: <Info size={17} className="text-acc shrink-0" />,
   };
   return (
-    <div className="fixed bottom-4 right-4 z-[80] flex flex-col gap-2 w-[min(92vw,360px)]">
+    <div className="fixed bottom-24 sm:bottom-24 right-3 sm:right-5 z-[80] flex flex-col gap-2 w-[min(92vw,360px)]">
       <AnimatePresence>
         {toasts.map((t) => (
           <motion.div
@@ -266,7 +228,20 @@ export function ToastHost({
             className="flex items-start gap-2.5 px-3.5 py-3 bg-card border border-line rounded-xl shadow-lg"
           >
             {icons[t.kind]}
-            <p className="text-[13px] leading-snug text-ink flex-1">{t.text}</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] leading-snug text-ink">{t.text}</p>
+              {t.action && (
+                <button
+                  onClick={() => {
+                    t.action!.run();
+                    dismiss(t.id);
+                  }}
+                  className="mt-1 text-[12.5px] font-semibold text-acc hover:underline cursor-pointer"
+                >
+                  {t.action.label}
+                </button>
+              )}
+            </div>
             <button onClick={() => dismiss(t.id)} className="text-mut hover:text-ink cursor-pointer">
               <X size={14} />
             </button>
@@ -286,32 +261,26 @@ export function Kbd({ children }: { children: React.ReactNode }) {
 }
 
 /* ── Contador animado ────────────────────────────────────────────────────── */
-export function CountUp({
-  value,
-  format,
-  className,
-  duration = 800,
-}: {
-  value: number;
-  format?: (n: number) => string;
-  className?: string;
-  duration?: number;
-}) {
+export function CountUp({ value, format, duration = 750 }: { value: number; format?: (n: number) => string; duration?: number }) {
   const [display, setDisplay] = useState(0);
   const prev = useRef(0);
   useEffect(() => {
     const from = prev.current;
     prev.current = value;
-    const start = performance.now();
+    if (from === value) {
+      setDisplay(value);
+      return;
+    }
     let raf = 0;
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - start) / duration);
+    const t0 = performance.now();
+    const step = (t: number) => {
+      const p = Math.min(1, (t - t0) / duration);
       const e = 1 - Math.pow(1 - p, 3);
       setDisplay(from + (value - from) * e);
-      if (p < 1) raf = requestAnimationFrame(tick);
+      if (p < 1) raf = requestAnimationFrame(step);
     };
-    raf = requestAnimationFrame(tick);
+    raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, [value, duration]);
-  return <span className={className}>{format ? format(display) : Math.round(display)}</span>;
+  return <>{format ? format(display) : Math.round(display).toLocaleString("es-ES")}</>;
 }
