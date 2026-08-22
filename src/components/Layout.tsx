@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Receipt, ScanLine, ShieldCheck, FileSpreadsheet, Link2, Settings as SettingsIcon,
-  Sun, Moon, Download, Search, Menu, X, Keyboard, Sparkles, Command,
+  Sun, Moon, Download, Search, Keyboard, Sparkles, Command, type LucideIcon,
 } from "lucide-react";
 import { useApp } from "../lib/store";
 import { cls, norm } from "../lib/util";
@@ -15,13 +15,12 @@ interface BIPEvent extends Event {
 }
 
 const NAV = [
-  { to: "/", label: "Panel", icon: LayoutDashboard, key: "Panel" },
-  { to: "/tickets", label: "Tickets", icon: Receipt, key: "Tickets" },
-  { to: "/scan", label: "Escanear", icon: ScanLine, key: "Escanear" },
-  { to: "/garantias", label: "Garantías", icon: ShieldCheck, key: "Garantías" },
-  { to: "/exportar", label: "Exportar", icon: FileSpreadsheet, key: "Exportar" },
-  { to: "/vincular", label: "Vincular", icon: Link2, key: "Vincular" },
-  { to: "/ajustes", label: "Ajustes", icon: SettingsIcon, key: "Ajustes" },
+  { to: "/", label: "Panel", icon: LayoutDashboard },
+  { to: "/tickets", label: "Tickets", icon: Receipt },
+  { to: "/garantias", label: "Garantías", icon: ShieldCheck },
+  { to: "/exportar", label: "Exportar", icon: FileSpreadsheet },
+  { to: "/vincular", label: "Vincular", icon: Link2 },
+  { to: "/ajustes", label: "Ajustes", icon: SettingsIcon },
 ];
 
 const TITLES: Record<string, string> = {
@@ -35,15 +34,15 @@ const TITLES: Record<string, string> = {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { ready, settings, setSettings, toasts, dismissToast, tickets, categories, toast } = useApp();
+  const { ready, settings, setSettings, toasts, dismissToast, tickets, toast } = useApp();
   const loc = useLocation();
   const nav = useNavigate();
-  const [mobileNav, setMobileNav] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
   const [palette, setPalette] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
   const [installEvt, setInstallEvt] = useState<BIPEvent | null>(null);
 
-  // advertencias de garantía (para badge en sidebar)
+  // avisos de garantía (badge en la dock)
   const warrantyAlerts = useMemo(() => {
     const now = Date.now();
     let n = 0;
@@ -52,13 +51,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         if (!it.warrantyMonths) continue;
         const end = new Date(t.date + "T00:00:00");
         end.setMonth(end.getMonth() + it.warrantyMonths);
-        const days = (end.getTime() - now) / 86400000;
-        if (days < 60) n++;
+        if ((end.getTime() - now) / 86400000 < 60) n++;
       }
     return n;
   }, [tickets]);
 
-  // prompt de instalación PWA
   useEffect(() => {
     const h = (e: Event) => {
       e.preventDefault();
@@ -80,37 +77,33 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       }
       if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
       switch (e.key.toLowerCase()) {
-        case "n":
-          nav("/scan");
-          break;
-        case "t":
-          setSettings({ dark: !settings.dark });
-          break;
-        case "e":
-          nav("/exportar");
-          break;
+        case "n": nav("/scan"); break;
+        case "t": setSettings({ dark: !settings.dark }); break;
+        case "e": nav("/exportar"); break;
         case "/":
           e.preventDefault();
           nav("/tickets");
           window.setTimeout(() => window.dispatchEvent(new CustomEvent("tb:focus-search")), 80);
           break;
-        case "?":
-          setShortcuts(true);
-          break;
+        case "?": setShortcuts(true); break;
       }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [nav, settings.dark, setSettings]);
 
-  useEffect(() => setMobileNav(false), [loc.pathname]);
+  // al cambiar de ruta: scroll arriba
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [loc.pathname]);
 
   const title = TITLES[loc.pathname] || "TicketBox";
 
   if (!ready) {
     return (
-      <div className="h-full flex flex-col items-center justify-center gap-5 paper-dots">
-        <motion.div initial={{ y: -16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.4 }}>
+      <div className="h-full flex flex-col items-center justify-center gap-5 paper-dots relative overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-72 pointer-events-none" style={{ background: "radial-gradient(60% 100% at 50% 0%, var(--accent-soft), transparent 70%)" }} />
+        <motion.div initial={{ y: -18, opacity: 0, scale: 0.9 }} animate={{ y: 0, opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 260, damping: 22 }}>
           <Logo size={64} />
         </motion.div>
         <div className="text-center">
@@ -121,154 +114,158 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const NavList = ({ compact }: { compact?: boolean }) => (
-    <nav className={cls("flex flex-col gap-1", compact ? "p-3" : "px-3 flex-1")}>
-      {NAV.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.to === "/"}
-          className={({ isActive }) =>
-            cls(
-              "relative flex items-center gap-3 px-3 h-10 rounded-lg text-[13.5px] font-medium transition-colors group",
-              isActive ? "bg-white/10 text-sideink" : "text-sidemut hover:text-sideink hover:bg-white/5"
-            )
-          }
-        >
-          {({ isActive }) => (
-            <>
-              {isActive && (
-                <motion.span layoutId="nav-pill" className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-acc" />
-              )}
-              <item.icon size={17} className={cls("shrink-0", isActive && "text-acc")} />
-              {item.label}
-              {item.to === "/garantias" && warrantyAlerts > 0 && (
-                <span className="ml-auto text-[10.5px] font-mono font-semibold bg-warn/20 text-warn rounded-md px-1.5 py-0.5">
-                  {warrantyAlerts}
-                </span>
-              )}
-              {item.to === "/tickets" && tickets.length > 0 && (
-                <span className="ml-auto text-[10.5px] font-mono text-sidemut">{tickets.length}</span>
-              )}
-            </>
-          )}
-        </NavLink>
-      ))}
-    </nav>
-  );
-
-  const SidebarFooter = (
-    <div className="px-3 pb-4 pt-3 border-t border-white/8 space-y-2">
-      <button
-        onClick={() => setSettings({ dark: !settings.dark })}
-        className="w-full flex items-center gap-3 px-3 h-10 rounded-lg text-[13.5px] text-sidemut hover:text-sideink hover:bg-white/5 transition-colors cursor-pointer"
-      >
-        {settings.dark ? <Sun size={17} /> : <Moon size={17} />}
-        {settings.dark ? "Modo claro" : "Modo oscuro"}
-        <span className="ml-auto"><Kbd>T</Kbd></span>
-      </button>
-      {installEvt && (
-        <button
-          onClick={async () => {
-            await installEvt.prompt();
-            const r = await installEvt.userChoice;
-            if (r.outcome === "accepted") toast("ok", "TicketBox instalada como app.");
-            setInstallEvt(null);
-          }}
-          className="w-full flex items-center gap-3 px-3 h-10 rounded-lg text-[13.5px] text-acc hover:bg-white/5 transition-colors cursor-pointer"
-        >
-          <Download size={17} /> Instalar app
-        </button>
-      )}
-      <p className="px-3 text-[10.5px] font-mono text-sidemut/70">v1.0 · OCR local · PWA</p>
-    </div>
-  );
-
   return (
-    <div className="h-full flex overflow-hidden">
-      {/* sidebar escritorio */}
-      <aside className="hidden lg:flex w-[232px] shrink-0 flex-col bg-side text-sideink border-r border-black/20">
-        <div className="flex items-center gap-3 px-5 h-[68px] border-b border-white/8">
-          <Logo size={34} />
-          <div>
-            <p className="font-display font-bold text-[17px] leading-none tracking-tight">TicketBox</p>
-            <p className="text-[10.5px] text-sidemut font-mono mt-1">tu archivador de tickets</p>
-          </div>
-        </div>
-        <div className="h-4" />
-        <NavList />
-        {SidebarFooter}
-      </aside>
-
-      {/* sidebar móvil */}
-      <AnimatePresence>
-        {mobileNav && (
-          <>
-            <motion.div className="fixed inset-0 z-40 bg-black/50 lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobileNav(false)} />
-            <motion.aside
-              initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }} transition={{ type: "spring", stiffness: 380, damping: 34 }}
-              className="fixed left-0 top-0 bottom-0 z-50 w-[250px] bg-side text-sideink flex flex-col lg:hidden"
-            >
-              <div className="flex items-center gap-3 px-4 h-16">
-                <Logo size={30} />
-                <p className="font-display font-bold tracking-tight">TicketBox</p>
-                <button onClick={() => setMobileNav(false)} className="ml-auto text-sidemut hover:text-sideink cursor-pointer"><X size={20} /></button>
-              </div>
-              <NavList compact />
-              <div className="mt-auto"><>{SidebarFooter}</></div>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* zona principal */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-[68px] shrink-0 flex items-center gap-3 px-4 sm:px-7 border-b border-line bg-card/80 backdrop-blur">
-          <button className="lg:hidden text-mut hover:text-ink cursor-pointer" onClick={() => setMobileNav(true)} aria-label="Abrir menú">
-            <Menu size={22} />
-          </button>
-          <h1 className="font-display font-bold text-lg sm:text-[21px] tracking-tight truncate">{title}</h1>
-          <div className="ml-auto flex items-center gap-1.5">
-            <button
-              onClick={() => setPalette(true)}
-              className="hidden sm:flex items-center gap-2 h-9 pl-3 pr-2 rounded-lg border border-line bg-card2/70 text-mut hover:text-ink hover:border-line2 transition-colors cursor-pointer"
-            >
-              <Search size={14} />
-              <span className="text-[12.5px]">Buscar o saltar…</span>
-              <Kbd>⌘K</Kbd>
-            </button>
-            <button
-              onClick={() => setShortcuts(true)}
-              className="w-9 h-9 rounded-lg flex items-center justify-center text-mut hover:text-ink hover:bg-card2 transition-colors cursor-pointer"
-              title="Atajos de teclado (?)"
-            >
-              <Keyboard size={17} />
-            </button>
-            <button
-              onClick={() => setSettings({ dark: !settings.dark })}
-              className="w-9 h-9 rounded-lg flex items-center justify-center text-mut hover:text-ink hover:bg-card2 transition-colors cursor-pointer"
-              title="Cambiar tema (T)"
-            >
-              {settings.dark ? <Sun size={17} /> : <Moon size={17} />}
-            </button>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-y-auto paper-dots">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={loc.pathname}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
-              className="max-w-[1140px] mx-auto px-4 sm:px-7 py-6 sm:py-8"
-            >
-              {children}
-            </motion.div>
-          </AnimatePresence>
-        </main>
+    <div className="h-full flex flex-col overflow-hidden relative">
+      {/* fondo ambiental: resplandor de acento + papel punteado */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden>
+        <div className="absolute inset-x-0 top-0 h-80" style={{ background: "radial-gradient(55% 100% at 50% -10%, var(--accent-soft), transparent 72%)" }} />
+        <div className="absolute inset-0 paper-dots opacity-70" />
       </div>
+
+      {/* cabecera flotante */}
+      <header className="relative z-30 shrink-0">
+        <div className="max-w-[1140px] mx-auto px-4 sm:px-7">
+          <motion.div
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 320, damping: 28 }}
+            className="mt-3 h-[54px] flex items-center gap-3 px-3.5 sm:px-4 rounded-2xl border border-line bg-card/85 backdrop-blur-md shadow-sm"
+          >
+            <NavLink to="/" className="flex items-center gap-2.5 shrink-0 group">
+              <motion.span whileHover={{ rotate: -6 }} transition={{ type: "spring", stiffness: 400, damping: 15 }} className="block">
+                <Logo size={30} />
+              </motion.span>
+              <span className="font-display font-bold text-[16px] tracking-tight hidden xs:block sm:block">TicketBox</span>
+            </NavLink>
+            <span className="w-px h-5 bg-line shrink-0" />
+            <div className="min-w-0 flex-1">
+              <AnimatePresence mode="wait">
+                <motion.h1
+                  key={title}
+                  initial={{ opacity: 0, y: 7 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -7 }}
+                  transition={{ duration: 0.16 }}
+                  className="font-display font-bold text-[14.5px] sm:text-[16px] tracking-tight truncate"
+                >
+                  {title}
+                </motion.h1>
+              </AnimatePresence>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => setPalette(true)}
+                className="hidden sm:flex items-center gap-2 h-9 pl-3 pr-2 rounded-lg border border-line bg-card2/70 text-mut hover:text-ink hover:border-line2 transition-colors cursor-pointer"
+              >
+                <Search size={14} />
+                <span className="text-[12.5px]">Buscar o saltar…</span>
+                <Kbd>⌘K</Kbd>
+              </button>
+              <button
+                onClick={() => setPalette(true)}
+                className="sm:hidden w-9 h-9 rounded-lg flex items-center justify-center text-mut hover:text-ink hover:bg-card2 transition-colors cursor-pointer"
+                aria-label="Buscar"
+              >
+                <Search size={17} />
+              </button>
+              {installEvt && (
+                <button
+                  onClick={async () => {
+                    await installEvt.prompt();
+                    const r = await installEvt.userChoice;
+                    if (r.outcome === "accepted") toast("ok", "TicketBox instalada como app.");
+                    setInstallEvt(null);
+                  }}
+                  className="w-9 h-9 rounded-lg flex items-center justify-center text-acc hover:bg-acc/12 transition-colors cursor-pointer"
+                  title="Instalar app"
+                >
+                  <Download size={17} />
+                </button>
+              )}
+              <button
+                onClick={() => setShortcuts(true)}
+                className="hidden sm:flex w-9 h-9 rounded-lg items-center justify-center text-mut hover:text-ink hover:bg-card2 transition-colors cursor-pointer"
+                title="Atajos de teclado (?)"
+              >
+                <Keyboard size={17} />
+              </button>
+              <motion.button
+                whileTap={{ rotate: 160 }}
+                onClick={() => setSettings({ dark: !settings.dark })}
+                className="w-9 h-9 rounded-lg flex items-center justify-center text-mut hover:text-ink hover:bg-card2 transition-colors cursor-pointer"
+                title="Cambiar tema (T)"
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={settings.dark ? "sun" : "moon"}
+                    initial={{ rotate: -90, opacity: 0, scale: 0.6 }}
+                    animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                    exit={{ rotate: 90, opacity: 0, scale: 0.6 }}
+                    transition={{ duration: 0.18 }}
+                    className="block"
+                  >
+                    {settings.dark ? <Sun size={17} /> : <Moon size={17} />}
+                  </motion.span>
+                </AnimatePresence>
+              </motion.button>
+            </div>
+          </motion.div>
+        </div>
+      </header>
+
+      {/* contenido */}
+      <main ref={mainRef} className="relative z-10 flex-1 overflow-y-auto overscroll-contain">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={loc.pathname}
+            initial={{ opacity: 0, y: 16, scale: 0.995 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.995 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="max-w-[1140px] mx-auto px-4 sm:px-7 pt-6 pb-36"
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+
+      {/* ── Dock flotante centrada ─────────────────────────────────────── */}
+      <nav className="fixed bottom-3 sm:bottom-5 inset-x-0 z-40 flex justify-center px-3 pointer-events-none" aria-label="Navegación principal">
+        <motion.div
+          initial={{ y: 90, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.15 }}
+          className="pointer-events-auto dock-safe flex items-end gap-0.5 sm:gap-1 px-2 sm:px-2.5 pt-1.5 pb-1.5 rounded-[26px] border border-line bg-card/90 backdrop-blur-xl shadow-[0_12px_40px_-8px_rgba(0,0,0,0.35)]"
+        >
+          {NAV.slice(0, 3).map((item) => (
+            <DockItem key={item.to} {...item} badge={item.to === "/garantias" ? warrantyAlerts : item.to === "/tickets" ? tickets.length : 0} badgeTone={item.to === "/garantias" ? "warn" : "mut"} />
+          ))}
+
+          {/* botón central: escanear */}
+          <div className="relative -mt-7 mx-0.5 sm:mx-1.5">
+            <span className="absolute -inset-1.5 rounded-full border border-acc/40 pulse-soft" aria-hidden />
+            <motion.button
+              whileHover={{ scale: 1.07 }}
+              whileTap={{ scale: 0.9 }}
+              transition={{ type: "spring", stiffness: 500, damping: 22 }}
+              onClick={() => nav("/scan")}
+              className={cls(
+                "relative w-[54px] h-[54px] sm:w-[58px] sm:h-[58px] rounded-full flex items-center justify-center text-accink shadow-lg cursor-pointer",
+                loc.pathname === "/scan" ? "ring-2 ring-offset-2 ring-acc ring-offset-card" : ""
+              )}
+              style={{ background: "var(--accent)" }}
+              aria-label="Escanear ticket"
+              title="Escanear (N)"
+            >
+              <ScanLine size={24} strokeWidth={2.2} />
+            </motion.button>
+          </div>
+
+          {NAV.slice(3).map((item) => (
+            <DockItem key={item.to} {...item} badge={0} badgeTone="mut" />
+          ))}
+        </motion.div>
+      </nav>
 
       <CommandPalette open={palette} onClose={() => setPalette(false)} />
 
@@ -281,7 +278,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
           <ul className="space-y-2.5 text-sm">
             {[
-              ["Nueva exploración / escanear", "N"],
+              ["Escanear un ticket", "N"],
               ["Buscar en tickets", "/"],
               ["Ir a exportar", "E"],
               ["Alternar modo oscuro", "T"],
@@ -299,6 +296,67 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       <ToastHost toasts={toasts} dismiss={dismissToast} />
     </div>
+  );
+}
+
+/* ── Elemento de la dock ─────────────────────────────────────────────────── */
+function DockItem({
+  to,
+  label,
+  icon: Icon,
+  badge,
+  badgeTone,
+}: {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  badge: number;
+  badgeTone: "warn" | "mut";
+}) {
+  return (
+    <NavLink to={to} end={to === "/"} className="group relative flex flex-col items-center" title={label}>
+      {({ isActive }) => (
+        <motion.div
+          whileHover={{ y: -3 }}
+          whileTap={{ scale: 0.88 }}
+          transition={{ type: "spring", stiffness: 500, damping: 26 }}
+          className={cls("relative flex flex-col items-center justify-center w-[52px] sm:w-[62px] h-[52px] sm:h-[54px] rounded-2xl cursor-pointer", !isActive && "hover:bg-card2")}
+        >
+          {isActive && (
+            <motion.span
+              layoutId="dock-pill"
+              transition={{ type: "spring", stiffness: 420, damping: 32 }}
+              className="absolute inset-0 rounded-2xl bg-acc/14"
+            />
+          )}
+          <span className="relative">
+            <Icon size={20} className={cls("transition-colors", isActive ? "text-acc" : "text-mut group-hover:text-ink")} strokeWidth={isActive ? 2.4 : 2} />
+            {badge > 0 && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                className={cls(
+                  "absolute -top-1.5 -right-2.5 min-w-[16px] h-[16px] px-1 rounded-full text-[9.5px] font-mono font-bold flex items-center justify-center leading-none",
+                  badgeTone === "warn" ? "bg-warn text-white" : "bg-line2 text-ink"
+                )}
+              >
+                {badge > 99 ? "99+" : badge}
+              </motion.span>
+            )}
+          </span>
+          {/* etiqueta: siempre visible en escritorio, solo la activa en móvil */}
+          <span
+            className={cls(
+              "relative text-[9.5px] font-display font-semibold tracking-wide leading-none mt-0.5 transition-all duration-200",
+              isActive ? "text-acc opacity-100" : "text-mut opacity-0 md:opacity-80 invisible md:visible"
+            )}
+          >
+            {label}
+          </span>
+        </motion.div>
+      )}
+    </NavLink>
   );
 }
 
@@ -321,9 +379,9 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
   const actions = useMemo(() => {
     const base = [
       ...NAV.map((n) => ({ id: n.to, label: `Ir a ${n.label}`, icon: n.icon, run: () => nav(n.to) })),
+      { id: "scan", label: "Escanear un ticket nuevo", icon: ScanLine, run: () => nav("/scan") },
       { id: "dark", label: settings.dark ? "Activar modo claro" : "Activar modo oscuro", icon: settings.dark ? Sun : Moon, run: () => setSettings({ dark: !settings.dark }) },
       { id: "demo", label: "Cargar tickets de ejemplo", icon: Sparkles, run: async () => { const n = await loadDemo(); toast("ok", `${n} tickets de ejemplo añadidos.`); } },
-      { id: "new", label: "Escanear un ticket nuevo", icon: ScanLine, run: () => nav("/scan") },
     ];
     const cats = categories.map((c) => ({
       id: "cat-" + c.id,
@@ -378,7 +436,7 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
                   onMouseEnter={() => setIdx(i)}
                   onClick={() => { onClose(); a.run(); }}
                   className={cls(
-                    "w-full flex items-center gap-3 px-4 h-10.5 py-2.5 text-left text-[13.5px] transition-colors cursor-pointer",
+                    "w-full flex items-center gap-3 px-4 py-2.5 text-left text-[13.5px] transition-colors cursor-pointer",
                     i === idx ? "bg-acc/12 text-acc" : "text-ink"
                   )}
                 >

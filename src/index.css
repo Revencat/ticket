@@ -78,6 +78,11 @@ body {
   background-size: 22px 22px;
 }
 
+/* dock inferior: respeto al área segura de iOS */
+.dock-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
+}
+
 /* borde de ticket: muescas laterales + separador troquelado */
 .stub {
   position: relative;

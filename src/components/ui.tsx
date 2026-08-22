@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle2, AlertTriangle, Info, Fuel, Shirt, UtensilsCrossed, Tag } from "lucide-react";
 import { cls } from "../lib/util";
@@ -283,4 +283,35 @@ export function Kbd({ children }: { children: React.ReactNode }) {
       {children}
     </kbd>
   );
+}
+
+/* ── Contador animado ────────────────────────────────────────────────────── */
+export function CountUp({
+  value,
+  format,
+  className,
+  duration = 800,
+}: {
+  value: number;
+  format?: (n: number) => string;
+  className?: string;
+  duration?: number;
+}) {
+  const [display, setDisplay] = useState(0);
+  const prev = useRef(0);
+  useEffect(() => {
+    const from = prev.current;
+    prev.current = value;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / duration);
+      const e = 1 - Math.pow(1 - p, 3);
+      setDisplay(from + (value - from) * e);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return <span className={className}>{format ? format(display) : Math.round(display)}</span>;
 }

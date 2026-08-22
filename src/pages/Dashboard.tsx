@@ -7,7 +7,7 @@ import { es } from "date-fns/locale";
 import { ScanLine, Wallet, Receipt as ReceiptIcon, Percent, ShieldCheck, ArrowRight, ChevronRight, AlertTriangle } from "lucide-react";
 import { useApp } from "../lib/store";
 import { fmtEUR, fmtDate, fmtMonth, cls } from "../lib/util";
-import { CatIcon, EmptyState, Button, Dot } from "../components/ui";
+import { CatIcon, EmptyState, Button, Dot, CountUp } from "../components/ui";
 
 export default function Dashboard() {
   const { tickets, categories, accent } = useApp();
@@ -80,14 +80,14 @@ export default function Dashboard() {
   }
 
   const tiles = [
-    { label: `Gasto en ${stats.monthLabel}`, value: fmtEUR(stats.curSum), icon: Wallet, extra: stats.delta !== null ? (
+    { label: `Gasto en ${stats.monthLabel}`, num: stats.curSum, fmt: fmtEUR, icon: Wallet, extra: stats.delta !== null ? (
         <span className={cls("text-[12px] font-mono font-semibold", stats.delta > 0 ? "text-danger" : "text-ok")}>
           {stats.delta > 0 ? "▲" : "▼"} {Math.abs(stats.delta).toFixed(0)}% vs mes anterior
         </span>
       ) : <span className="text-[12px] text-mut">sin datos del mes anterior</span> },
-    { label: "Tickets este mes", value: String(stats.curCount), icon: ReceiptIcon, extra: <span className="text-[12px] text-mut">{tickets.length} en total</span> },
-    { label: "Ticket medio", value: fmtEUR(stats.avg), icon: Percent, extra: <span className="text-[12px] text-mut">en el mes en curso</span> },
-    { label: "Garantías activas", value: String(stats.active), icon: ShieldCheck, extra: stats.soon > 0 ? (
+    { label: "Tickets este mes", num: stats.curCount, icon: ReceiptIcon, extra: <span className="text-[12px] text-mut">{tickets.length} en total</span> },
+    { label: "Ticket medio", num: stats.avg, fmt: fmtEUR, icon: Percent, extra: <span className="text-[12px] text-mut">en el mes en curso</span> },
+    { label: "Garantías activas", num: stats.active, icon: ShieldCheck, extra: stats.soon > 0 ? (
         <span className="text-[12px] font-mono font-semibold text-warn">{stats.soon} caducan pronto</span>
       ) : <span className="text-[12px] text-mut">todo en vigor</span> },
   ];
@@ -108,7 +108,9 @@ export default function Dashboard() {
               <p className="text-[11px] font-display font-semibold uppercase tracking-[0.08em] text-mut">{t.label}</p>
               <t.icon size={16} className="text-acc" />
             </div>
-            <p className="font-mono font-semibold text-[22px] mt-2 tracking-tight">{t.value}</p>
+            <p className="font-mono font-semibold text-[22px] mt-2 tracking-tight">
+              <CountUp value={t.num} format={t.fmt} />
+            </p>
             <div className="mt-1">{t.extra}</div>
           </motion.div>
         ))}
