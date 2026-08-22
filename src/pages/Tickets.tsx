@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { Search, Receipt as ReceiptIcon, Trash2, ScanLine, X, Image as ImageIcon, ShieldCheck, CalendarDays, Save } from "lucide-react";
+import { motion } from "framer-motion";
+import { Search, Receipt as ReceiptIcon, Trash2, ScanLine, X, Image as ImageIcon, ShieldCheck, CalendarDays, Save, Inbox } from "lucide-react";
 import { useApp } from "../lib/store";
 import { parseQuery } from "../lib/nl";
 import { fmtEUR, fmtDate, fmtMonth, monthKey, cls, todayISO } from "../lib/util";
@@ -31,28 +31,40 @@ export default function Tickets() {
 
   const nl = useMemo(() => parseQuery(query, categories, stores), [query, categories, stores]);
 
+  // tickets que cumplen la búsqueda natural (sin filtro de categoría)
+  const nlFiltered = useMemo(
+    () =>
+      tickets.filter((t) => {
+        if (nl.category && t.category !== nl.category) return false;
+        if (nl.store && !t.store.toLowerCase().includes(nl.store.toLowerCase())) return false;
+        if (nl.min !== undefined && (nl.minExcl ? t.total <= nl.min : t.total < nl.min)) return false;
+        if (nl.max !== undefined && (nl.maxExcl ? t.total >= nl.max : t.total > nl.max)) return false;
+        if (nl.from && t.date < nl.from) return false;
+        if (nl.to && t.date > nl.to) return false;
+        if (nl.text) {
+          const hay = (t.store + " " + t.items.map((i) => i.name).join(" ") + " " + (t.note || "")).toLowerCase();
+          if (!hay.includes(nl.text)) return false;
+        }
+        return true;
+      }),
+    [tickets, nl]
+  );
+
+  // contadores para el selector de categorías
+  const catCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of nlFiltered) m.set(t.category, (m.get(t.category) || 0) + 1);
+    return m;
+  }, [nlFiltered]);
+
   const filtered = useMemo(() => {
-    let xs = tickets.filter((t) => {
-      if (catFilter && t.category !== catFilter) return false;
-      if (nl.category && t.category !== nl.category) return false;
-      if (nl.store && !(t.store.toLowerCase().includes(nl.store.toLowerCase()))) return false;
-      if (nl.min !== undefined && (nl.minExcl ? t.total <= nl.min : t.total < nl.min)) return false;
-      if (nl.max !== undefined && (nl.maxExcl ? t.total >= nl.max : t.total > nl.max)) return false;
-      if (nl.from && t.date < nl.from) return false;
-      if (nl.to && t.date > nl.to) return false;
-      if (nl.text) {
-        const hay = (t.store + " " + t.items.map((i) => i.name).join(" ") + " " + (t.note || "")).toLowerCase();
-        if (!hay.includes(nl.text)) return false;
-      }
-      return true;
-    });
-    xs = [...xs].sort((a, b) => {
+    const xs = catFilter ? nlFiltered.filter((t) => t.category === catFilter) : nlFiltered;
+    return [...xs].sort((a, b) => {
       if (sort === "total-desc") return b.total - a.total;
       if (sort === "date-asc") return a.date.localeCompare(b.date);
       return b.date.localeCompare(a.date);
     });
-    return xs;
-  }, [tickets, catFilter, nl, sort]);
+  }, [nlFiltered, catFilter, sort]);
 
   const groups = useMemo(() => {
     const m = new Map<string, Ticket[]>();
@@ -67,10 +79,11 @@ export default function Tickets() {
   const totalFiltered = filtered.reduce((a, t) => a + t.total, 0);
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const selected = tickets.find((t) => t.id === selectedId) || null;
+  const anyFilter = catFilter !== null || nl.chips.length > 0;
 
   return (
     <div className="space-y-4">
-      {/* barra de búsqueda */}
+      {/* buscador */}
       <div className="bg-card border border-line rounded-xl p-3.5 space-y-3">
         <div className="flex flex-col sm:flex-row gap-2.5">
           <div className="relative flex-1">
@@ -94,20 +107,47 @@ export default function Tickets() {
             <option value="total-desc">Mayor importe</option>
           </select>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Chip color={catFilter === null ? undefined : catById.get(catFilter)?.color} onRemove={catFilter ? () => setCatFilter(null) : undefined}>
-            {catFilter ? catById.get(catFilter)?.name || catFilter : "Todas las categorías"}
-          </Chip>
-          {nl.chips.map((c) => (
-            <Chip key={c} color="var(--accent)" onRemove={() => setQuery("")}>{c}</Chip>
+
+        {/* selector de filtros por categoría */}
+        <div className="flex gap-2 overflow-x-auto receipts-scroll -mx-1 px-1 pb-0.5">
+          <FilterChip
+            active={catFilter === null}
+            color="var(--accent)"
+            label="Todas"
+            count={nlFiltered.length}
+            onClick={() => setCatFilter(null)}
+          />
+          {categories.map((c) => (
+            <FilterChip
+              key={c.id}
+              active={catFilter === c.id}
+              color={c.color}
+              icon={<CatIcon id={c.id} size={14} />}
+              label={c.name}
+              count={catCounts.get(c.id) || 0}
+              onClick={() => setCatFilter(catFilter === c.id ? null : c.id)}
+            />
           ))}
-          <span className="ml-auto text-[12px] font-mono text-mut">
-            {filtered.length} ticket{filtered.length !== 1 && "s"} · <strong className="text-ink">{fmtEUR(totalFiltered)}</strong>
-          </span>
         </div>
+
+        {(nl.chips.length > 0 || anyFilter) && (
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-line pt-3">
+            {nl.chips.map((c) => (
+              <Chip key={c} color="var(--accent)" onRemove={() => setQuery("")}>{c}</Chip>
+            ))}
+            {catFilter && (
+              <Chip color={catById.get(catFilter)?.color} onRemove={() => setCatFilter(null)}>
+                <CatIcon id={catFilter} size={11} /> {catById.get(catFilter)?.name || catFilter}
+              </Chip>
+            )}
+            <span className="ml-auto text-[12px] font-mono text-mut">
+              {filtered.length} ticket{filtered.length !== 1 && "s"} · <strong className="text-ink">{fmtEUR(totalFiltered)}</strong>
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* lista */}
+      {/* resultados */}
       {tickets.length === 0 ? (
         <EmptyState
           icon={<ReceiptIcon size={26} />}
@@ -124,50 +164,78 @@ export default function Tickets() {
         />
       ) : (
         groups.map(([month, list]) => (
-          <section key={month}>
-            <div className="flex items-baseline gap-3 mb-2 px-1">
-              <h2 className="font-display font-bold text-[14px] flex items-center gap-2"><CalendarDays size={14} className="text-acc" /> {fmtMonth(list[0].date)}</h2>
+          <section key={month + (catFilter || "") + sort}>
+            <div className="flex items-baseline gap-3 mb-2.5 px-1">
+              <h2 className="font-display font-bold text-[14px] flex items-center gap-2">
+                <CalendarDays size={14} className="text-acc" /> {fmtMonth(list[0].date)}
+              </h2>
               <span className="text-[12px] font-mono text-mut">{fmtEUR(list.reduce((a, t) => a + t.total, 0))}</span>
             </div>
-            <ul className="space-y-2">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {list.map((t, i) => {
                 const cat = catById.get(t.category);
                 const hasWarranty = t.items.some((x) => x.warrantyMonths > 0);
                 return (
-                  <motion.li key={t.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.03, 0.3) }}>
-                    <button
-                      onClick={() => setSelectedId(t.id)}
-                      className="stub w-full flex items-center gap-3 px-3 py-3 rounded-xl border border-line bg-card text-left hover:border-line2 hover:shadow-md hover:-translate-y-px transition-all cursor-pointer group"
-                    >
-                      <span className="notch notch-t" />
-                      <span className="notch notch-b" />
-                      <span className="w-[64px] h-[64px] rounded-lg overflow-hidden border border-line bg-white shrink-0 flex items-center justify-center">
-                        {t.photo ? (
-                          <img src={t.photo} alt="" className="w-full h-full object-cover" loading="lazy" />
-                        ) : (
-                          <ImageIcon size={20} className="text-mut" />
-                        )}
-                      </span>
-                      <span className="min-w-0 flex-1 border-l border-dashed border-line2 pl-4">
-                        <span className="flex items-center gap-2">
-                          <span className="font-display font-semibold text-[14.5px] truncate">{t.store}</span>
-                          {hasWarranty && <span title="Contiene productos con garantía" className="shrink-0 inline-flex"><ShieldCheck size={13} className="text-ok" /></span>}
-                          {t.source === "link" && <Chip>recibido</Chip>}
+                  <motion.button
+                    key={t.id}
+                    initial={{ opacity: 0, y: 18, scale: 0.97 }}
+                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                    viewport={{ once: true, margin: "-16px" }}
+                    transition={{ delay: Math.min(i * 0.05, 0.3), type: "spring", stiffness: 280, damping: 24 }}
+                    whileHover={{ y: -4 }}
+                    onClick={() => setSelectedId(t.id)}
+                    className="group relative text-left bg-card border border-line rounded-xl overflow-hidden cursor-pointer hover:border-line2 hover:shadow-[0_18px_36px_-18px_rgba(0,0,0,0.45)] transition-[border-color,box-shadow] duration-200"
+                  >
+                    {/* foto grande */}
+                    <div className="relative h-44 sm:h-52 bg-white overflow-hidden">
+                      {t.photo ? (
+                        <img
+                          src={t.photo}
+                          alt={`Ticket de ${t.store}`}
+                          loading="lazy"
+                          className="w-full h-full object-contain p-1.5 transition-transform duration-500 ease-out group-hover:scale-[1.05]"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-card2/60 text-mut">
+                          <ImageIcon size={22} />
+                          <span className="text-[11px] font-mono">sin foto</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+                      <div className="absolute left-2 right-2 bottom-2 flex items-center justify-between gap-2 pointer-events-none">
+                        <span
+                          className="inline-flex items-center gap-1 px-2 h-[22px] rounded-full text-[10.5px] font-semibold text-white shadow-sm"
+                          style={{ background: cat?.color || "#64748b" }}
+                        >
+                          <CatIcon id={t.category} size={11} /> {cat?.name || "Otros"}
                         </span>
-                        <span className="flex items-center gap-2 mt-1 text-[12px] text-mut">
-                          <span className="inline-flex items-center gap-1.5"><Dot color={cat?.color || "#64748b"} />{cat?.name || "Otros"}</span>
-                          <span>·</span>
-                          <span>{fmtDate(t.date)}</span>
-                          <span>·</span>
-                          <span>{t.items.length} art.</span>
+                        <span className="text-[10.5px] font-mono text-white/90">{fmtDate(t.date)}</span>
+                      </div>
+                      {hasWarranty && (
+                        <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/92 text-ok flex items-center justify-center shadow-sm" title="Contiene productos con garantía">
+                          <ShieldCheck size={13} />
                         </span>
-                      </span>
-                      <span className="font-mono font-semibold text-[15px] shrink-0 group-hover:text-acc transition-colors">{fmtEUR(t.total)}</span>
-                    </button>
-                  </motion.li>
+                      )}
+                      {t.source === "link" && (
+                        <span className="absolute top-2 left-2 inline-flex items-center gap-1 px-1.5 h-[20px] rounded-full bg-ink/80 text-white text-[9.5px] font-mono">
+                          <Inbox size={10} /> recibido
+                        </span>
+                      )}
+                    </div>
+                    {/* pie de la tarjeta */}
+                    <div className="p-3">
+                      <p className="font-display font-semibold text-[14px] truncate group-hover:text-acc transition-colors">{t.store}</p>
+                      <div className="flex items-end justify-between mt-1">
+                        <span className="text-[11px] text-mut">
+                          {t.items.length > 0 ? `${t.items.length} art.` : t.note ? "con nota" : "—"}
+                        </span>
+                        <span className="font-mono font-bold text-[15px] tracking-tight">{fmtEUR(t.total)}</span>
+                      </div>
+                    </div>
+                  </motion.button>
                 );
               })}
-            </ul>
+            </div>
           </section>
         ))
       )}
@@ -291,4 +359,37 @@ export default function Tickets() {
       </Modal>
     );
   }
+}
+
+/* ── Chip del selector de filtros ────────────────────────────────────────── */
+function FilterChip({
+  active,
+  color,
+  icon,
+  label,
+  count,
+  onClick,
+}: {
+  active: boolean;
+  color: string;
+  icon?: React.ReactNode;
+  label: string;
+  count: number;
+  onClick: () => void;
+}) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.92 }}
+      onClick={onClick}
+      className={cls(
+        "inline-flex items-center gap-1.5 h-9 pl-3 pr-2.5 rounded-full border text-[13px] font-medium whitespace-nowrap cursor-pointer transition-all duration-150",
+        active ? "text-white border-transparent shadow-sm" : "bg-card text-mut border-line hover:text-ink hover:border-line2"
+      )}
+      style={active ? { background: color } : undefined}
+    >
+      {icon && <span className={active ? "text-white" : "text-mut"}>{icon}</span>}
+      {label}
+      <span className={cls("font-mono text-[11px] min-w-[22px] text-center px-1 py-px rounded-full", active ? "bg-white/25" : "bg-card2")}>{count}</span>
+    </motion.button>
+  );
 }
