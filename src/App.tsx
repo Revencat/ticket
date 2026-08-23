@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import Tickets from "./pages/Tickets";
 import Warranties from "./pages/Warranties";
 import Settings from "./pages/Settings";
+import Cuenta from "./pages/Cuenta";
 
 /**
  * React.lazy con reintento: si un chunk perezoso falla al cargar
@@ -25,10 +26,10 @@ function lazyRetry<T extends React.ComponentType<unknown>>(factory: () => Promis
   );
 }
 
-// Las páginas con dependencias pesadas (Tesseract, ExcelJS, MQTT) se cargan bajo demanda
+// Las páginas con dependencias pesadas (Tesseract, ExcelJS) se cargan bajo demanda.
+// Cuenta es pequeña y crítica: va en el bundle principal para no fallar jamás.
 const Scan = lazyRetry(() => import("./pages/Scan"));
 const Export = lazyRetry(() => import("./pages/Export"));
-const Cuenta = lazyRetry(() => import("./pages/Cuenta"));
 
 class PageBoundary extends Component<{ children: React.ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -73,7 +74,6 @@ export default function App() {
     const t = window.setTimeout(() => {
       import("./pages/Scan").catch(() => {});
       import("./pages/Export").catch(() => {});
-      import("./pages/Cuenta").catch(() => {});
     }, 700);
     return () => window.clearTimeout(t);
   }, []);
