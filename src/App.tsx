@@ -1,5 +1,5 @@
 import React, { Component, Suspense, useEffect } from "react";
-import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppProvider } from "./lib/store";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
@@ -10,7 +10,7 @@ import Cuenta from "./pages/Cuenta";
 
 /**
  * React.lazy con reintento: si un chunk perezoso falla al cargar
- * (pestaña dormida mucho rato, actualización en segundo plano, red cortada)
+ * (pestaña dormida, actualización en segundo plano, red cortada)
  * recargamos la página una sola vez en lugar de dejarla en blanco.
  */
 function lazyRetry<T extends React.ComponentType<unknown>>(factory: () => Promise<{ default: T }>) {
@@ -31,28 +31,47 @@ function lazyRetry<T extends React.ComponentType<unknown>>(factory: () => Promis
 const Scan = lazyRetry(() => import("./pages/Scan"));
 const Export = lazyRetry(() => import("./pages/Export"));
 
-class PageBoundary extends Component<{ children: React.ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
+/** Si cualquier import() dinámico rechaza por chunk desaparecido, recargamos una vez. */
+const isChunkError = (e: unknown) => {
+  const m = e instanceof Error ? e.message : String(e);
+  return /Failed to fetch dynamically imported module|Loading chunk|Unable to preload CSS|error loading dynamically imported module/i.test(m);
+};
+
+class PageBoundary extends Component<{ children: React.ReactNode }, { failed: boolean; detail: string }> {
+  state = { failed: false, detail: "" };
+  static getDerivedStateFromError(err: unknown) {
+    return { failed: true, detail: err instanceof Error ? err.message : String(err) };
   }
   render() {
     if (this.state.failed) {
       return (
-        <div className="flex flex-col items-center justify-center py-24 gap-4 text-center px-6">
+        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center px-6 max-w-lg mx-auto">
+          <div className="w-11 h-11 rounded-xl bg-warn/12 text-warn flex items-center justify-center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+              <path d="M12 9v4M12 17h.01" />
+            </svg>
+          </div>
           <p className="font-display font-semibold text-lg">Esta página no pudo cargar</p>
-          <p className="text-mut text-sm max-w-sm">
-            Suele pasar tras dejar la pestaña en reposo un rato o cuando la app se actualiza en segundo plano. Tus datos siguen guardados.
+          <p className="text-mut text-sm leading-relaxed">
+            Suele pasar tras dejar la pestaña en reposo o cuando la app se actualiza en segundo plano. Tus datos siguen guardados.
           </p>
-          <button
-            onClick={() => {
-              sessionStorage.removeItem("tb-chunk-reload");
-              window.location.reload();
-            }}
-            className="h-10 px-4 rounded-lg bg-acc text-accink text-sm font-medium hover:brightness-110 active:scale-[0.97] transition-all cursor-pointer"
-          >
-            Recargar página
-          </button>
+          {this.state.detail && (
+            <p className="font-mono text-[11px] text-mut bg-card2 border border-line rounded-lg px-3 py-2 max-w-full break-words">
+              {this.state.detail.slice(0, 220)}
+            </p>
+          )}
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => {
+                sessionStorage.removeItem("tb-chunk-reload");
+                window.location.reload();
+              }}
+              className="h-10 px-4 rounded-lg bg-acc text-accink text-sm font-medium hover:brightness-110 active:scale-[0.97] transition-all cursor-pointer"
+            >
+              Recargar página
+            </button>
+          </div>
         </div>
       );
     }
@@ -66,36 +85,58 @@ const PageFallback = (
   </div>
 );
 
-export default function App() {
-  // Precarga todos los chunks perezosos poco después de arrancar:
-  // así, navegar entre páginas nunca se queda esperando (ni en blanco).
+/**
+ * Las rutas viven aquí para que el error boundary se reinicie en cada
+ * navegación (key = ruta): una página que falle no bloquea el resto de la app.
+ */
+function Shell() {
+  const loc = useLocation();
+
   useEffect(() => {
     sessionStorage.removeItem("tb-chunk-reload");
+    // Precarga los chunks perezosos: navegar nunca se queda esperando.
     const t = window.setTimeout(() => {
       import("./pages/Scan").catch(() => {});
       import("./pages/Export").catch(() => {});
     }, 700);
-    return () => window.clearTimeout(t);
+
+    const onRejection = (e: PromiseRejectionEvent) => {
+      if (isChunkError(e.reason) && !sessionStorage.getItem("tb-chunk-reload")) {
+        sessionStorage.setItem("tb-chunk-reload", "1");
+        window.location.reload();
+      }
+    };
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
   }, []);
 
+  return (
+    <PageBoundary key={loc.pathname}>
+      <Suspense fallback={PageFallback}>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/tickets" element={<Tickets />} />
+          <Route path="/scan" element={<Scan />} />
+          <Route path="/garantias" element={<Warranties />} />
+          <Route path="/exportar" element={<Export />} />
+          <Route path="/cuenta" element={<Cuenta />} />
+          <Route path="/ajustes" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    </PageBoundary>
+  );
+}
+
+export default function App() {
   return (
     <AppProvider>
       <HashRouter>
         <Layout>
-          <PageBoundary>
-            <Suspense fallback={PageFallback}>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/tickets" element={<Tickets />} />
-                <Route path="/scan" element={<Scan />} />
-                <Route path="/garantias" element={<Warranties />} />
-                <Route path="/exportar" element={<Export />} />
-                <Route path="/cuenta" element={<Cuenta />} />
-                <Route path="/ajustes" element={<Settings />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
-          </PageBoundary>
+          <Shell />
         </Layout>
       </HashRouter>
     </AppProvider>
