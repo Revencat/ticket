@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Receipt, ScanLine, ShieldCheck, FileSpreadsheet, Cloud, Settings as SettingsIcon,
-  Sun, Moon, Search, Keyboard, Sparkles, Command, type LucideIcon, WifiOff, QrCode, Download, Smartphone,
+  Sun, Moon, Search, Keyboard, Sparkles, Command, type LucideIcon, WifiOff, QrCode, Download, Smartphone, MoreHorizontal,
 } from "lucide-react";
 import { useApp } from "../lib/store";
 import { cls, norm, timeAgo } from "../lib/util";
@@ -42,6 +42,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [shortcuts, setShortcuts] = useState(false);
   const [installEvt, setInstallEvt] = useState<BIPEvent | null>(null);
   const [qrOpen, setQrOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [qrData, setQrData] = useState("");
   const [qrBusy, setQrBusy] = useState(false);
 
@@ -168,6 +169,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const title = TITLES[loc.pathname] || "TicketBox";
   const onScan = loc.pathname === "/scan";
+  // En móvil, el botón «Más» se ilumina cuando la ruta actual vive dentro de su panel
+  const moreActive = ["/exportar", "/cuenta", "/ajustes"].includes(loc.pathname);
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-wash">
@@ -287,39 +290,138 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.1 }}
           className="pointer-events-auto dock-safe flex items-end gap-0.5 px-1.5 pt-1 pb-0.5 rounded-[20px] bg-[#1a1b18] dark:bg-[#0f1113] border border-black/20 dark:border-white/5 shadow-[0_14px_40px_-12px_rgba(0,0,0,0.55)]"
         >
-          {NAV.slice(0, 3).map((item) => (
+          {/* Izquierda del escaneo: Panel y Tickets (visibles siempre) */}
+          {NAV.slice(0, 2).map((item) => (
             <DockItem
               key={item.to}
               {...item}
-              badge={item.to === "/garantias" ? warrantyAlerts : item.to === "/tickets" ? tickets.length : 0}
-              badgeTone={item.to === "/garantias" ? "warn" : "mut"}
+              badge={item.to === "/tickets" ? tickets.length : 0}
+              badgeTone="mut"
             />
           ))}
 
-          {/* acción central: escanear */}
-          <div className="relative -mt-6 mx-0.5 sm:mx-1">
+          {/* acción central: escanear (compacta en móvil) */}
+          <div className="relative -mt-5 sm:-mt-6 mx-0.5 sm:mx-1">
             <motion.button
               whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.9 }}
               transition={{ type: "spring", stiffness: 500, damping: 24 }}
               onClick={() => nav("/scan")}
               className={cls(
-                "relative w-[52px] h-[52px] rounded-full flex items-center justify-center text-accink shadow-lg cursor-pointer ring-1 ring-black/10",
+                "relative w-[46px] h-[46px] sm:w-[52px] sm:h-[52px] rounded-full flex items-center justify-center text-accink shadow-lg cursor-pointer ring-1 ring-black/10",
                 onScan && "ring-2 ring-offset-2 ring-acc ring-offset-card"
               )}
               style={{ background: "var(--accent)" }}
               aria-label="Escanear ticket"
               title="Escanear (N)"
             >
-              <ScanLine size={22} strokeWidth={2.2} />
+              <ScanLine size={20} strokeWidth={2.2} className="sm:w-[22px] sm:h-[22px]" />
             </motion.button>
           </div>
 
+          {/* Derecha del escaneo: Garantías (siempre) + resto según ancho */}
+          <DockItem
+            {...NAV[2]}
+            badge={warrantyAlerts}
+            badgeTone="warn"
+          />
+
+          {/* En móvil, «Más» abre el panel con las opciones restantes */}
+          <button
+            onClick={() => setMoreOpen(true)}
+            title="Más opciones"
+            aria-label="Más opciones"
+            className="md:hidden group relative flex flex-col items-center"
+          >
+            <motion.div
+              whileHover={{ y: -3 }}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: "spring", stiffness: 500, damping: 26 }}
+              className={cls(
+                "relative flex flex-col items-center justify-center w-[46px] h-[44px] sm:w-[60px] sm:h-[52px] rounded-xl cursor-pointer",
+                !moreActive && "hover:bg-white/10"
+              )}
+            >
+              {moreActive && (
+                <motion.span layoutId="dock-pill" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-xl bg-acc/15" />
+              )}
+              <span className="relative">
+                <MoreHorizontal size={20} className={cls("transition-colors", moreActive ? "text-acc" : "text-[#9aa196] group-hover:text-[#eceee9]")} strokeWidth={moreActive ? 2.3 : 2} />
+              </span>
+              <span className={cls("relative text-[9.5px] font-medium leading-none mt-0.5", moreActive ? "text-acc" : "text-[#8b928a]")}>
+                Más
+              </span>
+            </motion.div>
+          </button>
+
+          {/* En escritorio, las opciones restantes van en la propia dock */}
           {NAV.slice(3).map((item) => (
-            <DockItem key={item.to} {...item} badge={item.to === "/cuenta" && !account ? -1 : 0} badgeTone="mut" />
+            <DockItem key={item.to} {...item} badge={item.to === "/cuenta" && !account ? -1 : 0} badgeTone="mut" hideOnMobile />
           ))}
         </motion.div>
       </nav>
+
+      {/* Panel inferior «Más» (solo móvil) */}
+      <AnimatePresence>
+        {moreOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/45 md:hidden"
+              onMouseDown={() => setMoreOpen(false)}
+            />
+            <motion.div
+              initial={{ y: 120, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 120, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 34 }}
+              className="fixed bottom-0 inset-x-0 z-50 md:hidden pb-[calc(env(safe-area-inset-bottom,0px)+12px)]"
+            >
+              <div className="mx-auto max-w-md px-4">
+                <div className="bg-card border border-line rounded-t-2xl shadow-2xl overflow-hidden">
+                  <div className="flex justify-center pt-2.5 pb-1"><span className="w-10 h-1 rounded-full bg-line2" /></div>
+                  <p className="px-5 pt-1 pb-2 text-[11px] font-mono uppercase tracking-[0.14em] text-mut">Más opciones</p>
+                  <nav className="px-2 pb-3 grid grid-cols-3 gap-1.5">
+                    {NAV.slice(3).map((item) => {
+                      const ActiveIcon = item.icon;
+                      const active = loc.pathname === item.to;
+                      return (
+                        <NavLink
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setMoreOpen(false)}
+                          className={cls(
+                            "flex flex-col items-center justify-center gap-1.5 rounded-xl py-3.5 transition-colors cursor-pointer",
+                            active ? "bg-acc/12 text-acc" : "text-mut hover:bg-card2 hover:text-ink"
+                          )}
+                        >
+                          <span className="relative">
+                            <ActiveIcon size={20} strokeWidth={active ? 2.3 : 2} />
+                            {item.to === "/cuenta" && !account && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-warn" />}
+                          </span>
+                          <span className="text-[11px] font-medium">{item.label}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </nav>
+                  <button
+                    onClick={() => { setSettings({ dark: !settings.dark }); }}
+                    className="mx-2 mb-3 w-[calc(100%-16px)] flex items-center justify-between rounded-xl border border-line bg-card2/50 px-4 py-3 cursor-pointer hover:bg-card2 transition-colors"
+                  >
+                    <span className="flex items-center gap-2.5 text-[13px] font-medium text-ink">
+                      {settings.dark ? <Sun size={17} className="text-acc" /> : <Moon size={17} className="text-acc" />}
+                      {settings.dark ? "Modo claro" : "Modo oscuro"}
+                    </span>
+                    <span className="font-mono text-[11px] text-mut">tecla T</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <CommandPalette open={palette} onClose={() => setPalette(false)} />
 
@@ -407,15 +509,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 
 /* ── Elemento de la dock ─────────────────────────────────────────────────── */
-function DockItem({ to, label, icon: Icon, badge, badgeTone }: { to: string; label: string; icon: LucideIcon; badge: number; badgeTone: "warn" | "mut" }) {
+function DockItem({ to, label, icon: Icon, badge, badgeTone, hideOnMobile }: { to: string; label: string; icon: LucideIcon; badge: number; badgeTone: "warn" | "mut"; hideOnMobile?: boolean }) {
   return (
-    <NavLink to={to} end={to === "/"} className="group relative flex flex-col items-center" title={label}>
+    <NavLink
+      to={to}
+      end={to === "/"}
+      title={label}
+      className={cls("group relative flex-col items-center", hideOnMobile ? "hidden md:flex" : "flex")}
+    >
       {({ isActive }) => (
         <motion.div
           whileHover={{ y: -3 }}
           whileTap={{ scale: 0.88 }}
           transition={{ type: "spring", stiffness: 500, damping: 26 }}
-          className={cls("relative flex flex-col items-center justify-center w-[50px] sm:w-[60px] h-[50px] sm:h-[52px] rounded-xl cursor-pointer", !isActive && "hover:bg-white/10")}
+          className={cls("relative flex flex-col items-center justify-center w-[46px] sm:w-[60px] h-[44px] sm:h-[52px] rounded-xl cursor-pointer", !isActive && "hover:bg-white/10")}
         >
           {isActive && (
             <motion.span layoutId="dock-pill" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-xl bg-acc/15" />
