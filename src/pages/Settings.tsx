@@ -180,7 +180,7 @@ export default function Settings() {
 
         <ol className="relative space-y-5 ml-1">
           <span className="absolute left-[15px] top-4 bottom-4 w-px bg-line" aria-hidden />
-          {([
+          {[
             {
               icon: Camera, title: "1 · Captura", badge: "En tu dispositivo", tone: "ok",
               text: "La foto se hace con tu cámara o se elige de tu galería. En este momento la imagen solo existe en tu móvil u ordenador; no se sube a ningún sitio.",
