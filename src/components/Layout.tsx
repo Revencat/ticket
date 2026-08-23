@@ -348,9 +348,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <span className="relative">
                 <MoreHorizontal size={20} className={cls("transition-colors", moreActive ? "text-acc" : "text-[#9aa196] group-hover:text-[#eceee9]")} strokeWidth={moreActive ? 2.3 : 2} />
               </span>
-              <span className={cls("relative text-[9.5px] font-medium leading-none mt-0.5", moreActive ? "text-acc" : "text-[#8b928a]")}>
-                Más
-              </span>
             </motion.div>
           </button>
 
@@ -546,8 +543,8 @@ function DockItem({ to, label, icon: Icon, badge, badgeTone, hideOnMobile }: { t
           </span>
           <span
             className={cls(
-              "relative text-[9.5px] font-medium leading-none mt-0.5 transition-all duration-200",
-              isActive ? "text-acc opacity-100" : "text-[#8b928a] opacity-0 md:opacity-80 invisible md:visible"
+              "relative hidden md:block text-[9.5px] font-medium leading-none mt-0.5 transition-all duration-200",
+              isActive ? "text-acc opacity-100" : "text-[#8b928a] opacity-80"
             )}
           >
             {label}
