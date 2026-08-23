@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Moon, Sun, Plus, Trash2, Sparkles, Database, Palette, Store as StoreIcon, Tag, Download, Check } from "lucide-react";
+import { Moon, Sun, Plus, Trash2, Sparkles, Database, Palette, Store as StoreIcon, Tag, Download, Check, Camera, Cpu, Lock, FileSpreadsheet, EyeOff, Cloud, MapPin } from "lucide-react";
 import { useApp, THEMES } from "../lib/store";
 import { cls, uid } from "../lib/util";
 import { Button, Toggle, Modal, inputCls, CatIcon } from "../components/ui";
@@ -167,6 +167,78 @@ export default function Settings() {
           <Button variant="danger" onClick={() => setConfirmWipe(true)}>
             <Trash2 size={15} /> Borrar todos los tickets
           </Button>
+        </div>
+      </section>
+
+      {/* Dónde pasa tu foto */}
+      <section className="bg-card border border-line rounded-xl p-5">
+        <h2 className="font-display font-bold text-[15px] flex items-center gap-2 mb-1"><MapPin size={16} className="text-acc" /> Dónde pasa tu foto, paso a paso</h2>
+        <p className="text-[12.5px] text-mut mb-5 leading-relaxed">
+          Transparencia total: este es el recorrido exacto de la imagen de cada ticket, desde que la haces hasta que la exportas.
+          <strong className="text-ink"> TicketBox no tiene servidores propios y no almacena tus fotos en ningún sitio.</strong>
+        </p>
+
+        <ol className="relative space-y-5 ml-1">
+          <span className="absolute left-[15px] top-4 bottom-4 w-px bg-line" aria-hidden />
+          {([
+            {
+              icon: Camera, title: "1 · Captura", badge: "En tu dispositivo", tone: "ok",
+              text: "La foto se hace con tu cámara o se elige de tu galería. En este momento la imagen solo existe en tu móvil u ordenador; no se sube a ningún sitio.",
+            },
+            {
+              icon: Cpu, title: "2 · Lectura del ticket (OCR)", badge: "En tu dispositivo", tone: "ok",
+              text: "Tesseract.js lee el total, la fecha, la tienda y los productos dentro de tu navegador. La foto no se envía a ningún servidor. La única descarga (solo la primera vez) es el motor OCR y el idioma español (~4 MB) desde su CDN oficial; después funciona incluso sin conexión.",
+            },
+            {
+              icon: Database, title: "3 · Guardado", badge: "En tu dispositivo", tone: "ok",
+              text: "La foto se comprime (~900 px, JPEG) y se guarda en IndexedDB, el almacén privado de tu navegador, junto con los datos del ticket. Solo tú puedes acceder desde tu sesión de usuario de este dispositivo.",
+            },
+            {
+              icon: Cloud, title: "4 · Sincronización entre dispositivos", badge: "Red · cifrado de extremo a extremo", tone: "warn",
+              text: "Solo ocurre si creas una cuenta. La foto se cifra en tu dispositivo con AES-256-GCM (clave derivada de tu contraseña con PBKDF2, 80.000 iteraciones) y viaja por un relé MQTT público (broker.emqx.io, con TLS). El relé solo ve datos ilegibles y no guarda nada. Sin cuenta, este paso no existe.",
+              optional: true,
+            },
+            {
+              icon: FileSpreadsheet, title: "5 · Exportación a Excel", badge: "En tu dispositivo", tone: "ok",
+              text: "El libro .xlsx se genera dentro de tu navegador con ExcelJS y la foto queda incrustada en el archivo que se descarga. No se transmite a ningún servidor.",
+            },
+            {
+              icon: EyeOff, title: "6 · Sin seguimiento", badge: "Privacidad", tone: "mut",
+              text: "No usamos analíticas, cookies de terceros ni llamadas externas, salvo las dos descritas (descarga inicial del OCR y sincronización opcional cifrada). Nadie más ve tus tickets.",
+            },
+          ].map((s) => (
+            <li key={s.title} className="relative flex gap-4">
+              <span className="relative z-10 w-8 h-8 rounded-full bg-card border border-line2 flex items-center justify-center shrink-0">
+                <s.icon size={15} className="text-acc" />
+              </span>
+              <div className="pb-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-display font-semibold text-[14px]">{s.title}</p>
+                  <span
+                    className={cls(
+                      "text-[10.5px] font-semibold px-2 py-0.5 rounded-full border",
+                      s.tone === "ok" && "text-ok bg-ok/8 border-ok/25",
+                      s.tone === "warn" && "text-warn bg-warn/8 border-warn/25",
+                      s.tone === "mut" && "text-mut bg-card2 border-line2"
+                    )}
+                  >
+                    {s.badge}
+                  </span>
+                  {s.optional && <span className="text-[10.5px] text-mut italic">opcional</span>}
+                </div>
+                <p className="text-[12.5px] text-mut mt-1 leading-relaxed">{s.text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+
+        <div className="mt-5 border-t border-line pt-4 flex items-start gap-3">
+          <Lock size={15} className="text-mut shrink-0 mt-0.5" />
+          <p className="text-[12px] text-mut leading-relaxed">
+            <strong className="text-ink">Tus datos son tuyos.</strong> Las fotos y tickets viven en tu navegador y en los dispositivos con los que los sincronices.
+            Si borras un ticket, se elimina de tu dispositivo (y del resto si la sincronización está activa). Al cerrar esta web sin cuenta creada,
+            no queda ninguna copia fuera de tu equipo.
+          </p>
         </div>
       </section>
 

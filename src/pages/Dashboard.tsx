@@ -1,148 +1,105 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, PieChart, Pie, Cell,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, Cell,
 } from "recharts";
 import { format, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import {
-  ScanLine, Wallet, Receipt as ReceiptIcon, Percent, ShieldCheck, ArrowRight, ChevronRight, AlertTriangle,
-  ArrowUpRight, ArrowDownRight, Image as ImageIcon,
+  ScanLine, Wallet, Receipt as ReceiptIcon, Percent, ShieldCheck, ChevronRight, AlertTriangle,
+  Store as StoreIcon, ArrowUpRight, TrendingUp, TrendingDown, Layers,
 } from "lucide-react";
 import { useApp } from "../lib/store";
-import { fmtEUR, relDate, cls } from "../lib/util";
-import { CatIcon, EmptyState, Button, CountUp } from "../components/ui";
+import { fmtEUR, relDate, monthKey, cls } from "../lib/util";
+import type { Ticket } from "../types";
+import { CatIcon, EmptyState, Button, CountUp, Dot } from "../components/ui";
 
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
-interface MonthStat {
+interface MonthRow {
   key: string;
-  label: string;
+  short: string;
   full: string;
   total: number;
   count: number;
-  prev: number | null;
-}
-interface CatStat {
-  id: string;
-  name: string;
-  color: string;
-  total: number;
-}
-
-/* ── chip de variación (▲ gasto = ámbar, ▼ gasto = verde) ─────────────────── */
-function DeltaChip({ now, prev, dark }: { now: number; prev: number | null; dark?: boolean }) {
-  if (prev === null || prev <= 0) {
-    return <span className={cls("font-mono text-[11px]", dark ? "text-[#8b978f]" : "text-mut")}>—</span>;
-  }
-  const pct = ((now - prev) / prev) * 100;
-  const up = pct >= 0;
-  return (
-    <span
-      className={cls(
-        "inline-flex items-center gap-0.5 font-mono text-[11px] font-semibold",
-        dark ? (up ? "text-[#e8b45a]" : "text-[#5ecf9a]") : up ? "text-warn" : "text-ok"
-      )}
-    >
-      {up ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
-      {Math.abs(pct).toFixed(0)}%
-    </span>
-  );
-}
-
-/* ── tooltip propio de la gráfica de barras ───────────────────────────────── */
-function BarTip({ active, payload }: { active?: boolean; payload?: Array<{ payload: MonthStat }> }) {
-  if (!active || !payload?.length) return null;
-  const d = payload[0].payload;
-  return (
-    <div className="rounded-lg border border-line bg-card px-3 py-2.5 shadow-xl pointer-events-none">
-      <p className="text-[11px] font-mono text-mut">{d.full}</p>
-      <p className="font-mono font-semibold text-[16px] leading-tight mt-0.5">{fmtEUR(d.total)}</p>
-      <div className="flex items-center gap-2 mt-1 text-[11px] text-mut">
-        <span>{d.count} ticket{d.count !== 1 && "s"}</span>
-        <DeltaChip now={d.total} prev={d.prev} />
-      </div>
-    </div>
-  );
-}
-
-function PieTip({ active, payload }: { active?: boolean; payload?: Array<{ payload: CatStat }> }) {
-  if (!active || !payload?.length) return null;
-  const d = payload[0].payload;
-  return (
-    <div className="rounded-lg border border-white/15 bg-[#262d34] px-3 py-2 shadow-xl pointer-events-none">
-      <p className="text-[11px] text-[#9aa79f]">{d.name}</p>
-      <p className="font-mono font-semibold text-[15px] text-white leading-tight mt-0.5">{fmtEUR(d.total)}</p>
-    </div>
-  );
+  byCat: { id: string; name: string; color: string; total: number; pct: number }[];
 }
 
 export default function Dashboard() {
   const { tickets, categories, accent } = useApp();
-  const [activeBar, setActiveBar] = useState<number | null>(null);
-  const [activeCat, setActiveCat] = useState<number | null>(null);
+  const nav = useNavigate();
 
   const stats = useMemo(() => {
     const now = new Date();
-    const monthLabel = format(now, "LLLL", { locale: es });
+    const thisMonth = format(now, "yyyy-MM");
+    const prevMonth = format(subMonths(now, 1), "yyyy-MM");
+    const sum = (xs: Ticket[]) => xs.reduce((a, t) => a + t.total, 0);
 
-    // 7 meses para poder calcular la variación del primero visible
-    const months: MonthStat[] = Array.from({ length: 7 }, (_, i) => {
-      const d = subMonths(now, 6 - i);
+    const months: MonthRow[] = Array.from({ length: 6 }, (_, i) => {
+      const d = subMonths(now, 5 - i);
       const key = format(d, "yyyy-MM");
-      const inMonth = tickets.filter((t) => t.date.startsWith(key));
+      const list = tickets.filter((t) => monthKey(t.date) === key);
+      const total = sum(list);
       return {
         key,
-        label: cap(format(d, "MMM", { locale: es })),
-        full: `${cap(format(d, "LLLL", { locale: es }))} ${format(d, "yyyy")}`,
-        total: Math.round(inMonth.reduce((a, t) => a + t.total, 0) * 100) / 100,
-        count: inMonth.length,
-        prev: null,
+        short: format(d, "MMM", { locale: es }).replace(".", ""),
+        full: format(d, "LLLL yyyy", { locale: es }),
+        total: Math.round(total * 100) / 100,
+        count: list.length,
+        byCat: categories
+          .map((c) => ({ ...c, total: Math.round(sum(list.filter((t) => t.category === c.id)) * 100) / 100 }))
+          .filter((c) => c.total > 0)
+          .map((c) => ({ id: c.id, name: c.name, color: c.color, total: c.total, pct: total > 0 ? (c.total / total) * 100 : 0 }))
+          .sort((a, b) => b.total - a.total),
       };
-    }).map((m, i, xs) => ({ ...m, prev: i === 0 ? null : xs[i - 1].total }));
+    });
 
-    const chartData = months.slice(1); // 6 visibles, todos con `prev`
-    const cur = months[6];
-    const prevMonth = months[5];
-    const avgMonth = Math.round((chartData.reduce((a, m) => a + m.total, 0) / 6) * 100) / 100;
-    const peak = chartData.reduce((a, m) => (m.total > a.total ? m : a), chartData[0]);
+    const cur = months[5];
+    const prev = months[4];
+    const curMonthList = tickets.filter((t) => monthKey(t.date) === thisMonth);
+    const prevSum = tickets.filter((t) => monthKey(t.date) === prevMonth).reduce((a, t) => a + t.total, 0);
+    const delta = prevSum > 0 ? ((cur.total - prevSum) / prevSum) * 100 : null;
+    const avg = months.reduce((a, m) => a + m.total, 0) / 6;
 
-    const byCat: CatStat[] = categories
-      .map((c) => ({ id: c.id, name: c.name, color: c.color, total: Math.round(tickets.filter((t) => t.category === c.id && t.date.startsWith(cur.key)).reduce((a, t) => a + t.total, 0) * 100) / 100 }))
-      .filter((c) => c.total > 0)
-      .sort((a, b) => b.total - a.total);
+    // top tiendas (todo el archivo)
+    const byStore = new Map<string, { total: number; count: number }>();
+    for (const t of tickets) {
+      const s = byStore.get(t.store) || { total: 0, count: 0 };
+      s.total += t.total;
+      s.count++;
+      byStore.set(t.store, s);
+    }
+    const topStores = [...byStore.entries()]
+      .map(([store, v]) => ({ store, total: Math.round(v.total * 100) / 100, count: v.count, avg: v.total / v.count }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 6);
 
-    let warrantyActive = 0, warrantySoon = 0;
+    // garantías
+    let active = 0, soon = 0;
     for (const t of tickets)
       for (const it of t.items) {
         if (!it.warrantyMonths) continue;
         const end = new Date(t.date + "T00:00:00");
         end.setMonth(end.getMonth() + it.warrantyMonths);
         const days = (end.getTime() - Date.now()) / 86400000;
-        if (days >= 0) warrantyActive++;
-        if (days >= 0 && days < 60) warrantySoon++;
+        if (days >= 0) active++;
+        if (days >= 0 && days < 60) soon++;
       }
 
-    return {
-      monthLabel,
-      curSum: cur.total,
-      curCount: cur.count,
-      prevSum: prevMonth.total,
-      avg: cur.count ? Math.round((cur.total / cur.count) * 100) / 100 : 0,
-      chartData,
-      avgMonth,
-      peak,
-      byCat,
-      warrantyActive,
-      warrantySoon,
-      recent: [...tickets]
-        .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt)
-        .slice(0, 6),
-    };
+    const recent = [...tickets].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt).slice(0, 6);
+    return { months, cur, prev, delta, avg, topStores, active, soon, recent, thisMonth, prevCount: prev.count };
   }, [tickets, categories]);
 
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+  const recentWithPhoto = stats.recent.some((t) => t.photo);
+
+  const openCat = (id: string) => {
+    nav("/tickets");
+    window.setTimeout(() => window.dispatchEvent(new CustomEvent("tb:filter-cat", { detail: id })), 120);
+  };
+  const openStore = (name: string) => {
+    nav("/tickets");
+    window.setTimeout(() => window.dispatchEvent(new CustomEvent("tb:set-query", { detail: name })), 120);
+  };
 
   if (tickets.length === 0) {
     return (
@@ -159,20 +116,27 @@ export default function Dashboard() {
     );
   }
 
-  const maxTotal = Math.max(...stats.chartData.map((m) => m.total), 1);
   const tiles = [
     {
-      label: `Gasto en ${stats.monthLabel}`, num: stats.curSum, fmt: fmtEUR, icon: Wallet,
-      extra: stats.prevSum > 0
-        ? <span className="inline-flex items-center gap-1.5 text-[12px]"><DeltaChip now={stats.curSum} prev={stats.prevSum} /><span className="text-mut">vs mes anterior</span></span>
-        : <span className="text-[12px] text-mut">sin datos del mes anterior</span>,
+      label: `Gasto en ${stats.cur.full.split(" ")[0]}`, num: stats.cur.total, fmt: fmtEUR, icon: Wallet,
+      extra: stats.delta !== null ? (
+        <span className={cls("inline-flex items-center gap-1 text-[12px] font-mono font-semibold", stats.delta > 0 ? "text-warn" : "text-ok")}>
+          {stats.delta > 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />} {Math.abs(stats.delta).toFixed(0)}% vs mes anterior
+        </span>
+      ) : <span className="text-[12px] text-mut">sin datos del mes anterior</span>,
     },
-    { label: "Tickets este mes", num: stats.curCount, icon: ReceiptIcon, extra: <span className="text-[12px] text-mut">{tickets.length} en total</span> },
-    { label: "Ticket medio", num: stats.avg, fmt: fmtEUR, icon: Percent, extra: <span className="text-[12px] text-mut">en el mes en curso</span> },
     {
-      label: "Garantías activas", num: stats.warrantyActive, icon: ShieldCheck,
-      extra: stats.warrantySoon > 0
-        ? <span className="text-[12px] font-mono font-semibold text-warn">{stats.warrantySoon} caducan pronto</span>
+      label: "Tickets este mes", num: stats.cur.count, icon: ReceiptIcon,
+      extra: <span className="text-[12px] text-mut">{tickets.length} en total</span>,
+    },
+    {
+      label: "Ticket medio", num: stats.cur.count ? stats.cur.total / stats.cur.count : 0, fmt: fmtEUR, icon: Percent,
+      extra: <span className="text-[12px] text-mut">en el mes en curso</span>,
+    },
+    {
+      label: "Garantías activas", num: stats.active, icon: ShieldCheck,
+      extra: stats.soon > 0
+        ? <span className="text-[12px] font-mono font-semibold text-warn">{stats.soon} caducan pronto</span>
         : <span className="text-[12px] text-mut">todo en vigor</span>,
     },
   ];
@@ -190,278 +154,344 @@ export default function Dashboard() {
             className="bg-card border border-line rounded-xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all"
           >
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-display font-semibold uppercase tracking-[0.08em] text-mut">{t.label}</p>
+              <p className="text-[12.5px] font-medium text-mut">{t.label}</p>
               <t.icon size={16} className="text-acc" />
             </div>
-            <p className="font-mono font-semibold text-[22px] mt-2 tracking-tight">
+            <p className="font-mono font-semibold text-[24px] mt-1.5 tracking-tight leading-none">
               <CountUp value={t.num} format={t.fmt} />
             </p>
-            <div className="mt-1">{t.extra}</div>
+            <div className="mt-2">{t.extra}</div>
           </motion.div>
         ))}
       </div>
 
-      {/* Ritmo de gasto + Por categoría */}
-      <div className="grid lg:grid-cols-5 gap-3.5">
+      {/* fila 1: ritmo + composición */}
+      <div className="grid lg:grid-cols-5 gap-4">
         <motion.section
-          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
-          className="lg:col-span-3 bg-card border border-line rounded-xl p-5 chart-glow hover:border-line2 transition-colors"
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          className="lg:col-span-3 bg-card border border-line rounded-xl p-5"
         >
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start justify-between mb-1">
             <div>
-              <h2 className="font-display font-bold text-[15px]">Ritmo de gasto</h2>
+              <h2 className="font-display font-bold text-[16px]">Ritmo de gasto</h2>
               <p className="text-[12px] text-mut mt-0.5">últimos 6 meses</p>
             </div>
             <div className="text-right">
-              <p className="font-mono font-semibold text-[24px] leading-tight tracking-tight">
-                <CountUp value={stats.curSum} format={fmtEUR} />
+              <p className="font-mono font-semibold text-[20px] leading-none">
+                <CountUp value={stats.cur.total} format={fmtEUR} />
               </p>
-              <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                <DeltaChip now={stats.curSum} prev={stats.prevSum} />
-                <span className="text-[11px] text-mut">este mes</span>
-              </div>
+              <p className="text-[11px] text-mut mt-1">
+                {stats.delta !== null ? (
+                  <span className={stats.delta > 0 ? "text-warn" : "text-ok"}>
+                    {stats.delta > 0 ? "▲" : "▼"} {Math.abs(stats.delta).toFixed(0)}%
+                  </span>
+                ) : "—"}{" "}
+                vs {stats.prev.short}
+              </p>
             </div>
           </div>
-
-          <div className="flex items-center gap-2 mt-3 text-[11px] text-mut">
-            <svg width="26" height="6" aria-hidden><line x1="0" y1="3" x2="26" y2="3" stroke="var(--muted)" strokeOpacity="0.6" strokeDasharray="4 3" /></svg>
-            <span>media <span className="font-mono text-ink">{fmtEUR(stats.avgMonth)}</span>/mes</span>
-          </div>
-
-          <div className="h-[252px] mt-2">
-            <ResponsiveContainer>
-              <BarChart
-                data={stats.chartData}
-                margin={{ top: 6, right: 6, left: -6, bottom: 0 }}
-                barCategoryGap="26%"
-                onMouseMove={(st) => {
-                  const i = (st as { activeTooltipIndex?: number }).activeTooltipIndex;
-                  setActiveBar(typeof i === "number" && i >= 0 ? i : null);
-                }}
-                onMouseLeave={() => setActiveBar(null)}
-              >
-                <defs>
-                  <linearGradient id="tbBar" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={accent} stopOpacity={0.95} />
-                    <stop offset="100%" stopColor={accent} stopOpacity={0.4} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="2 5" />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--muted)", fontSize: 11.5 }} dy={6} />
-                <YAxis
-                  tickLine={false} axisLine={false} width={40}
-                  tick={{ fill: "var(--muted)", fontSize: 10.5 }}
-                  tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1).replace(".", ",")}k` : `${v}€`)}
-                />
-                <Tooltip cursor={{ fill: "var(--accent-soft)" }} content={<BarTip />} />
-                <ReferenceLine y={stats.avgMonth} stroke="var(--muted)" strokeOpacity={0.5} strokeDasharray="5 5" />
-                <Bar dataKey="total" radius={[7, 7, 2, 2]} maxBarSize={46} animationDuration={750}>
-                  {stats.chartData.map((m, i) => (
-                    <Cell
-                      key={m.key}
-                      cursor="pointer"
-                      fill={activeBar === null || activeBar === i ? "url(#tbBar)" : `${accent}26`}
-                      style={{ transition: "fill .18s" }}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-[248px] mt-2">
+            <RhythmChart months={stats.months} accent={accent} avg={stats.avg} />
           </div>
         </motion.section>
 
-        {/* Donut por categoría — tarjeta oscura de contraste */}
         <motion.section
-          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
-          className="lg:col-span-2 card-ink relative overflow-hidden border border-white/10 rounded-xl p-5"
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}
+          className="lg:col-span-2 relative overflow-hidden bg-[#171b1e] text-[#e9ecea] border border-black/40 rounded-xl p-5"
         >
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -top-20 -right-20 w-64 h-64 rounded-full opacity-25"
-            style={{ background: `radial-gradient(circle, ${accent}, transparent 68%)` }}
-          />
-          <div className="relative flex items-start justify-between">
-            <div>
-              <h2 className="font-display font-bold text-[15px] text-white">Por categoría</h2>
-              <p className="text-[12px] text-[#8b978f] mt-0.5 capitalize">{stats.monthLabel}</p>
-            </div>
-            <span className="font-mono text-[11px] text-[#8b978f] border border-white/10 rounded-md px-2 py-1">{stats.byCat.length} categoría{stats.byCat.length !== 1 && "s"}</span>
-          </div>
-
-          {stats.byCat.length === 0 ? (
-            <p className="relative text-[#8b978f] text-sm py-16 text-center">Sin gasto registrado este mes.</p>
-          ) : (
-            <>
-              <div className="relative h-[196px] mt-3">
-                <ResponsiveContainer>
-                  <PieChart>
-                    <Pie
-                      data={stats.byCat} dataKey="total" nameKey="name"
-                      innerRadius="66%" outerRadius="94%" paddingAngle={3} cornerRadius={5}
-                      strokeWidth={0} startAngle={90} endAngle={-270} animationDuration={800}
-                    >
-                      {stats.byCat.map((c, i) => (
-                        <Cell
-                          key={c.id} fill={c.color}
-                          opacity={activeCat === null || activeCat === i ? 1 : 0.2}
-                          style={{ transition: "opacity .18s", cursor: "pointer" }}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<PieTip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <AnimatePresence mode="wait">
-                    {activeCat === null ? (
-                      <motion.div key="all" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} transition={{ duration: 0.15 }} className="text-center">
-                        <p className="font-mono font-semibold text-[19px] text-white leading-tight">{fmtEUR(stats.curSum)}</p>
-                        <p className="text-[11px] text-[#8b978f] mt-0.5">total del mes</p>
-                      </motion.div>
-                    ) : (
-                      <motion.div key={stats.byCat[activeCat].id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} transition={{ duration: 0.15 }} className="text-center px-3">
-                        <p className="font-mono font-semibold text-[19px] text-white leading-tight">{fmtEUR(stats.byCat[activeCat].total)}</p>
-                        <p className="text-[11px] font-medium mt-0.5" style={{ color: stats.byCat[activeCat].color }}>
-                          {stats.byCat[activeCat].name} · {Math.round((stats.byCat[activeCat].total / stats.curSum) * 100)}%
-                        </p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+          <div className="absolute inset-x-0 top-0 h-28 pointer-events-none bg-glow" />
+          <div className="relative">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="font-display font-bold text-[16px] flex items-center gap-2"><Layers size={15} className="text-acc" /> En qué se va</h2>
+                <p className="text-[12px] text-[#8b948e] mt-0.5">composición por categoría · mes a mes</p>
               </div>
-
-              <ul className="relative mt-3 space-y-0.5">
-                {stats.byCat.map((c, i) => {
-                  const pct = stats.curSum > 0 ? Math.round((c.total / stats.curSum) * 100) : 0;
-                  return (
-                    <li
-                      key={c.id}
-                      onMouseEnter={() => setActiveCat(i)}
-                      onMouseLeave={() => setActiveCat(null)}
-                      className={cls(
-                        "flex items-center gap-2.5 rounded-lg px-2 py-1.5 -mx-2 transition-colors cursor-default",
-                        activeCat === i && "bg-white/[0.06]"
-                      )}
-                    >
-                      <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: c.color }} />
-                      <span className="text-[13px] text-[#c6cec8] truncate">{c.name}</span>
-                      <span className="ml-auto font-mono text-[11px] text-[#8b978f] w-9 text-right">{pct}%</span>
-                      <span className="font-mono text-[12.5px] font-semibold text-white w-[74px] text-right">{fmtEUR(c.total)}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          )}
+            </div>
+            <CompositionChart months={stats.months} onCat={openCat} />
+          </div>
         </motion.section>
       </div>
 
-      {/* Actividad reciente + Comparativa mensual */}
-      <div className="grid lg:grid-cols-5 gap-3.5">
+      {/* fila 2: top tiendas + actividad */}
+      <div className="grid lg:grid-cols-5 gap-4">
         <motion.section
-          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}
-          className="lg:col-span-3 bg-card border border-line rounded-xl overflow-hidden"
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          className="lg:col-span-3 bg-card border border-line rounded-xl p-5"
         >
-          <div className="flex items-center justify-between px-5 pt-4 pb-2">
-            <h2 className="font-display font-bold text-[15px]">Actividad reciente</h2>
-            <Link to="/tickets" className="group/link text-[12.5px] text-acc font-medium inline-flex items-center gap-1 hover:underline">
-              Ver todos <ArrowRight size={13} className="transition-transform group-hover/link:translate-x-0.5" />
-            </Link>
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h2 className="font-display font-bold text-[16px] flex items-center gap-2"><StoreIcon size={15} className="text-acc" /> Top tiendas</h2>
+              <p className="text-[12px] text-mut mt-0.5">dónde más gastas · todo el archivo</p>
+            </div>
+            <span className="text-[12px] text-mut font-mono">{stats.topStores.length} tiendas</span>
           </div>
-          <ul className="px-2.5 pb-2.5">
+          <ul className="space-y-1.5">
+            {stats.topStores.map((s, i) => {
+              const max = stats.topStores[0].total || 1;
+              const pct = (s.total / max) * 100;
+              return (
+                <li key={s.store}>
+                  <button
+                    onClick={() => openStore(s.store)}
+                    className="relative w-full overflow-hidden rounded-lg border border-line hover:border-line2 hover:bg-card2/60 transition-all group text-left cursor-pointer"
+                  >
+                    <motion.span
+                      initial={{ width: 0 }}
+                      whileInView={{ width: `${pct}%` }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.08 + i * 0.05 }}
+                      className="absolute inset-y-0 left-0 bg-acc/10 group-hover:bg-acc/16 transition-colors"
+                    />
+                    <span className="relative flex items-center gap-3 px-3.5 py-2.5">
+                      <span className={cls("font-mono text-[11.5px] w-6 shrink-0", i === 0 ? "text-acc font-bold" : "text-mut")}>
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-display font-semibold text-[14px] truncate group-hover:text-acc transition-colors">{s.store}</span>
+                        <span className="block text-[11.5px] text-mut">{s.count} ticket{s.count > 1 ? "s" : ""} · media {fmtEUR(s.avg)}</span>
+                      </span>
+                      <span className="font-mono font-semibold text-[14.5px]">{fmtEUR(s.total)}</span>
+                      <ArrowUpRight size={15} className="text-mut opacity-0 group-hover:opacity-100 group-hover:text-acc transition-all shrink-0" />
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-[11.5px] text-mut mt-3">Toca una tienda para ver sus tickets.</p>
+        </motion.section>
+
+        <motion.section
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24 }}
+          className="lg:col-span-2 bg-card border border-line rounded-xl p-5"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="font-display font-bold text-[16px]">Actividad reciente</h2>
+              <p className="text-[12px] text-mut mt-0.5">últimos archivados</p>
+            </div>
+            <Link to="/tickets" className="text-[12.5px] text-acc font-medium hover:underline">Ver todos</Link>
+          </div>
+          <ul className="space-y-1">
             {stats.recent.map((t, i) => {
               const cat = catById.get(t.category);
               return (
-                <motion.li key={t.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.28 + i * 0.04 }}>
-                  <Link
-                    to="/tickets"
-                    className="group flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-card2 transition-all"
-                  >
-                    <span className="w-11 h-11 rounded-lg overflow-hidden border border-line bg-white shrink-0 flex items-center justify-center">
-                      {t.photo ? (
-                        <img src={t.photo} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
-                      ) : (
-                        <ImageIcon size={16} className="text-mut" />
-                      )}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[13.5px] font-semibold truncate leading-tight">{t.store}</span>
-                      <span className="flex items-center gap-1.5 mt-0.5 text-[11.5px] text-mut">
-                        <span className="font-mono">{relDate(t.date)}</span>
-                        <span aria-hidden>·</span>
-                        <span className="inline-flex items-center gap-1 truncate" style={{ color: cat?.color }}>
-                          <CatIcon id={t.category} size={11} /> {cat?.name || "Otros"}
-                        </span>
+                <motion.li
+                  key={t.id}
+                  initial={{ opacity: 0, x: 10 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.04 }}
+                >
+                  <Link to="/tickets" className="flex items-center gap-3 px-2.5 py-2 -mx-1 rounded-lg hover:bg-card2 transition-colors group cursor-pointer">
+                    {recentWithPhoto && (
+                      <span className="w-9 h-9 rounded-md overflow-hidden border border-line bg-photobg shrink-0">
+                        {t.photo ? <img src={t.photo} alt="" className="w-full h-full object-cover" loading="lazy" /> : <span className="w-full h-full flex items-center justify-center text-mut"><ReceiptIcon size={14} /></span>}
                       </span>
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="text-[13.5px] font-semibold truncate group-hover:text-acc transition-colors">{t.store}</span>
+                        {cat && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: cat.color }} />}
+                      </span>
+                      <span className="block text-[11.5px] text-mut">{relDate(t.date)} · {cat?.name || "Otros"}</span>
                     </span>
-                    <span className="font-mono font-semibold text-[14px] w-[76px] text-right shrink-0">{fmtEUR(t.total)}</span>
-                    <ChevronRight size={15} className="text-acc opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all shrink-0" />
+                    <span className="font-mono font-semibold text-[13.5px] shrink-0">{fmtEUR(t.total)}</span>
+                    <ChevronRight size={14} className="text-mut opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                   </Link>
                 </motion.li>
               );
             })}
           </ul>
         </motion.section>
-
-        <motion.section
-          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26 }}
-          className="lg:col-span-2 bg-card border border-line rounded-xl p-5 flex flex-col"
-        >
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-display font-bold text-[15px]">Comparativa mensual</h2>
-            <span className="text-[11.5px] font-mono text-mut">vs mes anterior</span>
-          </div>
-          <ul className="mt-3 space-y-2.5 flex-1">
-            {stats.chartData.map((m, i) => (
-              <li key={m.key}>
-                <div className="flex items-center justify-between text-[12.5px] mb-1">
-                  <span className="font-medium">{m.label} <span className="text-mut font-normal">{m.count} tk</span></span>
-                  <span className="inline-flex items-center gap-2">
-                    <DeltaChip now={m.total} prev={m.prev} />
-                    <span className="font-mono font-semibold">{fmtEUR(m.total)}</span>
-                  </span>
-                </div>
-                <div className="h-[7px] rounded-full bg-card2 overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ background: i === stats.chartData.length - 1 ? accent : `${accent}52` }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(m.total / maxTotal) * 100}%` }}
-                    transition={{ duration: 0.7, ease: "easeOut", delay: 0.3 + i * 0.05 }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4 pt-3 border-t border-line flex items-center justify-between text-[12px] text-mut">
-            <span>Media <span className="font-mono text-ink">{fmtEUR(stats.avgMonth)}</span></span>
-            <span>Tope en <span className="text-ink font-medium">{stats.peak.label}</span> · <span className="font-mono text-ink">{fmtEUR(stats.peak.total)}</span></span>
-          </div>
-        </motion.section>
       </div>
 
-      {/* aviso de garantías */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-        {stats.warrantySoon > 0 ? (
-          <Link to="/garantias" className="group flex items-center gap-3 rounded-xl border border-warn/30 bg-warn/8 hover:bg-warn/14 px-4 py-3 transition-colors">
-            <span className="w-9 h-9 rounded-lg bg-warn/15 text-warn flex items-center justify-center shrink-0"><AlertTriangle size={17} /></span>
-            <span className="flex-1 min-w-0">
-              <span className="block font-display font-semibold text-[13.5px] text-warn">{stats.warrantySoon} garantía{stats.warrantySoon > 1 ? "s" : ""} a punto de caducar</span>
-              <span className="block text-[12px] text-mut">Revisa esos productos antes de 60 días para no perder la cobertura.</span>
-            </span>
-            <span className="inline-flex items-center gap-1 text-[12.5px] font-medium text-warn shrink-0">Revisar <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" /></span>
-          </Link>
-        ) : (
-          <Link to="/garantias" className="group flex items-center gap-3 rounded-xl border border-ok/25 bg-ok/6 hover:bg-ok/12 px-4 py-3 transition-colors">
-            <span className="w-9 h-9 rounded-lg bg-ok/12 text-ok flex items-center justify-center shrink-0"><ShieldCheck size={17} /></span>
-            <span className="flex-1 min-w-0">
-              <span className="block font-display font-semibold text-[13.5px] text-ok">Garantías bajo control</span>
-              <span className="block text-[12px] text-mut">Ningún producto caduca en los próximos 60 días.</span>
-            </span>
-            <span className="inline-flex items-center gap-1 text-[12.5px] font-medium text-ok shrink-0">Ver <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" /></span>
-          </Link>
-        )}
-      </motion.div>
+      {/* garantías */}
+      {stats.soon > 0 ? (
+        <Link to="/garantias" className="block bg-warn/8 border border-warn/25 rounded-xl px-5 py-4 hover:bg-warn/12 transition-colors">
+          <div className="flex items-center gap-3">
+            <AlertTriangle size={18} className="text-warn shrink-0" />
+            <p className="text-[13.5px]">
+              <strong className="text-warn font-semibold">{stats.soon} garantía{stats.soon > 1 ? "s" : ""} a punto de caducar</strong>
+              <span className="text-mut"> — revisa tus productos antes de 60 días.</span>
+            </p>
+            <ChevronRight size={16} className="text-warn ml-auto shrink-0" />
+          </div>
+        </Link>
+      ) : (
+        <div className="bg-ok/6 border border-ok/20 rounded-xl px-5 py-4 flex items-center gap-3">
+          <ShieldCheck size={18} className="text-ok shrink-0" />
+          <p className="text-[13.5px]"><strong className="text-ok font-semibold">Garantías bajo control</strong><span className="text-mut"> — ningún producto caduca en los próximos 60 días.</span></p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Barras de ritmo con hover y media ───────────────────────────────────── */
+function RhythmChart({ months, accent, avg }: { months: MonthRow[]; accent: string; avg: number }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const data = months.map((m) => ({ ...m, name: m.short }));
+  const max = Math.max(...months.map((m) => m.total), 1);
+
+  const TipContent = ({ active, payload }: { active?: boolean; payload?: { payload: MonthRow }[] }) => {
+    if (!active || !payload?.length) return null;
+    const m = payload[0].payload;
+    const idx = months.findIndex((x) => x.key === m.key);
+    const prevT = idx > 0 ? months[idx - 1].total : 0;
+    const delta = prevT > 0 ? ((m.total - prevT) / prevT) * 100 : null;
+    return (
+      <div className="bg-card border border-line rounded-lg shadow-xl px-3.5 py-2.5 text-[12.5px] min-w-[150px]">
+        <p className="font-display font-semibold text-[13px] capitalize mb-1">{m.full}</p>
+        <p className="font-mono font-semibold text-[15px]">{fmtEUR(m.total)}</p>
+        <p className="text-mut mt-0.5">
+          {m.count} ticket{m.count !== 1 && "s"}
+          {delta !== null && (
+            <span className={delta > 0 ? "text-warn" : "text-ok"}> · {delta > 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(0)}%</span>
+          )}
+        </p>
+      </div>
+    );
+  };
+
+  return (
+    <div className="relative">
+      {avg > 0 && (
+        <div className="absolute left-10 right-2 z-10 pointer-events-none" style={{ bottom: 22 + (avg / max) * 196 }}>
+          <div className="border-t border-dashed" style={{ borderColor: accent + "77" }} />
+          <span className="absolute right-0 -top-[9px] text-[10px] font-mono px-1.5 rounded" style={{ color: accent, background: "var(--card)" }}>
+            media {fmtEUR(avg)}
+          </span>
+        </div>
+      )}
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 8, right: 4, left: 4, bottom: 0 }} barCategoryGap="28%">
+          <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "var(--muted)", fontSize: 11.5 }} dy={6} />
+          <YAxis hide domain={[0, max * 1.12]} />
+          <Tooltip cursor={{ fill: "var(--card2)" }} content={<TipContent />} />
+          <ReferenceLine y={0} stroke="var(--line)" />
+          <Bar
+            dataKey="total"
+            radius={[7, 7, 2, 2]}
+            onMouseLeave={() => setHover(null)}
+            animationDuration={650}
+            animationEasing="ease-out"
+          >
+            {data.map((m, i) => (
+              <Cell
+                key={m.key}
+                fill={i === 5 ? accent : accent + "66"}
+                fillOpacity={hover === null || hover === i ? 1 : 0.35}
+                onMouseEnter={() => setHover(i)}
+                style={{ transition: "fill-opacity .2s", cursor: "pointer" }}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/* ── Composición por categoría (barras apiladas por mes) ─────────────────── */
+function CompositionChart({ months, onCat }: { months: MonthRow[]; onCat: (id: string) => void }) {
+  const [active, setActive] = useState<string | null>(null);
+  const [tip, setTip] = useState<{ x: number; y: number; name: string; color: string; total: number; pct: number; month: string } | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  // totales del periodo por categoría (para la leyenda)
+  const totals = useMemo(() => {
+    const m = new Map<string, { name: string; color: string; total: number }>();
+    let grand = 0;
+    for (const mo of months) {
+      grand += mo.total;
+      for (const c of mo.byCat) {
+        const t = m.get(c.id) || { name: c.name, color: c.color, total: 0 };
+        t.total = Math.round((t.total + c.total) * 100) / 100;
+        m.set(c.id, t);
+      }
+    }
+    return { rows: [...m.entries()].map(([id, v]) => ({ id, ...v, pct: grand > 0 ? (v.total / grand) * 100 : 0 })).sort((a, b) => b.total - a.total), grand };
+  }, [months]);
+
+  const move = (e: React.PointerEvent, c: MonthRow["byCat"][number], month: string) => {
+    const r = boxRef.current?.getBoundingClientRect();
+    if (!r) return;
+    setTip({ x: e.clientX - r.left, y: e.clientY - r.top, name: c.name, color: c.color, total: c.total, pct: c.pct, month });
+  };
+
+  return (
+    <div ref={boxRef} className="relative">
+      <div className="mt-4 space-y-[9px]">
+        {[...months].reverse().map((m, ri) => {
+          const isCurrent = ri === 0;
+          return (
+            <div key={m.key} className="flex items-center gap-2.5">
+              <span className={cls("w-9 text-[11px] font-mono shrink-0 capitalize", isCurrent ? "text-[#e9ecea] font-bold" : "text-[#8b948e]")}>
+                {m.short}
+              </span>
+              <div className={cls("flex-1 h-[19px] flex rounded-[5px] overflow-hidden", m.total === 0 && "bg-white/8")}>
+                {m.byCat.map((c) => (
+                  <motion.div
+                    key={c.id}
+                    initial={{ opacity: 0, scaleX: 0.6 }}
+                    whileInView={{ opacity: 1, scaleX: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.4, delay: 0.1 + ri * 0.04 }}
+                    onPointerEnter={(e) => { setActive(c.id); move(e, c, m.full); }}
+                    onPointerMove={(e) => move(e, c, m.full)}
+                    onPointerLeave={() => { setActive(null); setTip(null); }}
+                    onClick={() => onCat(c.id)}
+                    className="h-full cursor-pointer origin-left"
+                    style={{
+                      width: `${Math.max(c.pct, 3.5)}%`,
+                      background: c.color,
+                      opacity: active === null || active === c.id ? 1 : 0.3,
+                      transition: "opacity .18s",
+                      boxShadow: active === c.id ? `0 0 0 1.5px rgba(255,255,255,.75) inset` : undefined,
+                    }}
+                  />
+                ))}
+              </div>
+              <span className="w-[64px] text-right font-mono text-[11px] shrink-0 text-[#b9c0ba]">
+                {m.total > 0 ? fmtEUR(m.total) : "—"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {tip && (
+        <div
+          className="absolute z-20 pointer-events-none bg-[#22272b] border border-white/10 rounded-lg px-3 py-2 shadow-xl"
+          style={{ left: Math.min(tip.x + 12, (boxRef.current?.clientWidth || 300) - 170), top: tip.y - 62 }}
+        >
+          <p className="flex items-center gap-1.5 text-[12px] font-semibold">
+            <Dot color={tip.color} /> {tip.name}
+          </p>
+          <p className="font-mono text-[13px] mt-0.5">{fmtEUR(tip.total)} <span className="text-[#8b948e]">· {tip.pct.toFixed(0)}% de {tip.month}</span></p>
+        </div>
+      )}
+
+      <div className="mt-5 pt-4 border-t border-white/10">
+        <p className="text-[11px] text-[#8b948e] mb-2.5">Total 6 meses · <span className="font-mono text-[#e9ecea]">{fmtEUR(totals.grand)}</span> — toca una categoría para ver sus tickets</p>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {totals.rows.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => onCat(r.id)}
+              onMouseEnter={() => setActive(r.id)}
+              onMouseLeave={() => setActive(null)}
+              className="flex items-center gap-1.5 text-[12px] cursor-pointer transition-opacity"
+              style={{ opacity: active === null || active === r.id ? 1 : 0.4 }}
+            >
+              <Dot color={r.color} />
+              <span className="text-[#b9c0ba]">{r.name}</span>
+              <span className="font-mono text-[#e9ecea]">{r.pct.toFixed(0)}%</span>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

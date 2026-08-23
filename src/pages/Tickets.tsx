@@ -21,11 +21,14 @@ export default function Tickets() {
   useEffect(() => {
     const focus = () => searchRef.current?.focus();
     const filterCat = (e: Event) => setCatFilter((e as CustomEvent).detail);
+    const setQueryEvt = (e: Event) => setQuery((e as CustomEvent).detail as string);
     window.addEventListener("tb:focus-search", focus);
     window.addEventListener("tb:filter-cat", filterCat);
+    window.addEventListener("tb:set-query", setQueryEvt);
     return () => {
       window.removeEventListener("tb:focus-search", focus);
       window.removeEventListener("tb:filter-cat", filterCat);
+      window.removeEventListener("tb:set-query", setQueryEvt);
     };
   }, []);
 
