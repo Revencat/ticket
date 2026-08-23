@@ -153,3 +153,17 @@ input[type="color"]::-webkit-color-swatch {
   border: none;
   border-radius: 6px;
 }
+
+/* resplandor suave dentro de la tarjeta del gráfico principal */
+.chart-glow {
+  background-image: radial-gradient(560px 210px at 10% -60px, var(--accent-soft), transparent 72%);
+}
+
+/* tarjeta oscura de contraste (donut por categoría) */
+.card-ink {
+  background: #21272d;
+  color: #e9edea;
+}
+.dark .card-ink {
+  background: #1a1f25;
+}
