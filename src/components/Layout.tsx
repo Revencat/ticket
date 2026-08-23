@@ -290,7 +290,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.1 }}
           className="pointer-events-auto dock-safe flex items-end gap-0.5 px-1.5 pt-1 pb-0.5 rounded-[20px] bg-[#1a1b18] dark:bg-[#0f1113] border border-black/20 dark:border-white/5 shadow-[0_14px_40px_-12px_rgba(0,0,0,0.55)]"
         >
-          {/* Izquierda del escaneo: Panel y Tickets (visibles siempre) */}
+          {/* Izquierda del escaneo: en escritorio, 3 pestañas para equilibrar la dock */}
           {NAV.slice(0, 2).map((item) => (
             <DockItem
               key={item.to}
@@ -299,6 +299,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               badgeTone="mut"
             />
           ))}
+          <DockItem {...NAV[2]} badge={warrantyAlerts} badgeTone="warn" hideOnMobile />
 
           {/* acción central: escanear (compacta en móvil) */}
           <div className="relative -mt-5 sm:-mt-6 mx-0.5 sm:mx-1">
@@ -319,11 +320,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </motion.button>
           </div>
 
-          {/* Derecha del escaneo: Garantías (siempre) + resto según ancho */}
+          {/* Derecha del escaneo: Garantías solo en móvil (en escritorio ya va a la izquierda) */}
           <DockItem
             {...NAV[2]}
             badge={warrantyAlerts}
             badgeTone="warn"
+            hideOnDesktop
           />
 
           {/* En móvil, «Más» abre el panel con las opciones restantes */}
@@ -506,13 +508,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 
 /* ── Elemento de la dock ─────────────────────────────────────────────────── */
-function DockItem({ to, label, icon: Icon, badge, badgeTone, hideOnMobile }: { to: string; label: string; icon: LucideIcon; badge: number; badgeTone: "warn" | "mut"; hideOnMobile?: boolean }) {
+function DockItem({ to, label, icon: Icon, badge, badgeTone, hideOnMobile, hideOnDesktop }: { to: string; label: string; icon: LucideIcon; badge: number; badgeTone: "warn" | "mut"; hideOnMobile?: boolean; hideOnDesktop?: boolean }) {
   return (
     <NavLink
       to={to}
       end={to === "/"}
       title={label}
-      className={cls("group relative flex-col items-center", hideOnMobile ? "hidden md:flex" : "flex")}
+      className={cls(
+        "group relative flex-col items-center",
+        hideOnMobile && "hidden md:flex",
+        hideOnDesktop && "md:hidden",
+        !hideOnMobile && !hideOnDesktop && "flex"
+      )}
     >
       {({ isActive }) => (
         <motion.div
