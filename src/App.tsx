@@ -1,5 +1,6 @@
-import React, { Component, Suspense, useEffect } from "react";
-import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import React, { Component, Suspense, useEffect, useRef, useState } from "react";
+import { HashRouter, Routes, Route, Navigate, useLocation, type Location } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { AppProvider } from "./lib/store";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
@@ -10,7 +11,7 @@ import Cuenta from "./pages/Cuenta";
 
 /**
  * React.lazy con reintento: si un chunk perezoso falla al cargar
- * (pestaña dormida, actualización en segundo plano, red cortada)
+ * (pestaña dormida mucho rato, actualización en segundo plano, red cortada)
  * recargamos la página una sola vez en lugar de dejarla en blanco.
  */
 function lazyRetry<T extends React.ComponentType<unknown>>(factory: () => Promise<{ default: T }>) {
@@ -31,12 +32,12 @@ function lazyRetry<T extends React.ComponentType<unknown>>(factory: () => Promis
 const Scan = lazyRetry(() => import("./pages/Scan"));
 const Export = lazyRetry(() => import("./pages/Export"));
 
-/** Si cualquier import() dinámico rechaza por chunk desaparecido, recargamos una vez. */
 const isChunkError = (e: unknown) => {
   const m = e instanceof Error ? e.message : String(e);
   return /Failed to fetch dynamically imported module|Loading chunk|Unable to preload CSS|error loading dynamically imported module/i.test(m);
 };
 
+/* ── Límite de errores de página ─────────────────────────────────────────── */
 class PageBoundary extends Component<{ children: React.ReactNode }, { failed: boolean; detail: string }> {
   state = { failed: false, detail: "" };
   static getDerivedStateFromError(err: unknown) {
@@ -61,17 +62,42 @@ class PageBoundary extends Component<{ children: React.ReactNode }, { failed: bo
               {this.state.detail.slice(0, 220)}
             </p>
           )}
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={() => {
-                sessionStorage.removeItem("tb-chunk-reload");
-                window.location.reload();
-              }}
-              className="h-10 px-4 rounded-lg bg-acc text-accink text-sm font-medium hover:brightness-110 active:scale-[0.97] transition-all cursor-pointer"
-            >
-              Recargar página
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              sessionStorage.removeItem("tb-chunk-reload");
+              window.location.reload();
+            }}
+            className="mt-2 h-10 px-4 rounded-lg bg-acc text-accink text-sm font-medium hover:brightness-110 active:scale-[0.97] transition-all cursor-pointer"
+          >
+            Recargar página
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/* ── Límite de errores global (cabecera, dock, provider): nunca más pantalla en blanco ── */
+class RootBoundary extends Component<{ children: React.ReactNode }, { failed: boolean; detail: string }> {
+  state = { failed: false, detail: "" };
+  static getDerivedStateFromError(err: unknown) {
+    return { failed: true, detail: err instanceof Error ? err.message : String(err) };
+  }
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center gap-3 px-6 text-center" style={{ background: "var(--bg)", color: "var(--ink)" }}>
+          <p className="font-semibold text-lg">TicketBox ha encontrado un problema</p>
+          <p className="text-sm opacity-70 max-w-sm">Tus tickets siguen guardados en este dispositivo. Recarga para continuar.</p>
+          {this.state.detail && <p className="font-mono text-[11px] opacity-60 bg-black/5 rounded-lg px-3 py-2 max-w-md break-words">{this.state.detail.slice(0, 260)}</p>}
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-2 h-10 px-5 rounded-lg text-sm font-medium text-white"
+            style={{ background: "var(--accent)" }}
+          >
+            Recargar la aplicación
+          </button>
         </div>
       );
     }
@@ -86,11 +112,17 @@ const PageFallback = (
 );
 
 /**
- * Las rutas viven aquí para que el error boundary se reinicie en cada
- * navegación (key = ruta): una página que falle no bloquea el resto de la app.
+ * Shell de rutas con transición de página segura:
+ * la ruta que se muestra (displayLoc) se «congela» durante la animación de
+ * salida y solo se actualiza cuando la página vieja ha terminado de irse.
+ * Así el árbol saliente nunca se re-renderiza con la ruta nueva (la causa del
+ * pantallazo en blanco al salir de ciertas páginas).
  */
 function Shell() {
   const loc = useLocation();
+  const [displayLoc, setDisplayLoc] = useState<Location>(loc);
+  const locRef = useRef(loc);
+  locRef.current = loc;
 
   useEffect(() => {
     sessionStorage.removeItem("tb-chunk-reload");
@@ -114,31 +146,44 @@ function Shell() {
   }, []);
 
   return (
-    <PageBoundary key={loc.pathname}>
-      <Suspense fallback={PageFallback}>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/tickets" element={<Tickets />} />
-          <Route path="/scan" element={<Scan />} />
-          <Route path="/garantias" element={<Warranties />} />
-          <Route path="/exportar" element={<Export />} />
-          <Route path="/cuenta" element={<Cuenta />} />
-          <Route path="/ajustes" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-    </PageBoundary>
+    <AnimatePresence mode="wait" onExitComplete={() => setDisplayLoc(locRef.current)}>
+      <motion.div
+        key={loc.pathname}
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.2, ease: [0.25, 1, 0.4, 1] }}
+        className="max-w-[1140px] mx-auto px-4 sm:px-6 pt-6 pb-32"
+      >
+        <PageBoundary>
+          <Suspense fallback={PageFallback}>
+            <Routes location={displayLoc}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/tickets" element={<Tickets />} />
+              <Route path="/scan" element={<Scan />} />
+              <Route path="/garantias" element={<Warranties />} />
+              <Route path="/exportar" element={<Export />} />
+              <Route path="/cuenta" element={<Cuenta />} />
+              <Route path="/ajustes" element={<Settings />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </PageBoundary>
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
 export default function App() {
   return (
-    <AppProvider>
-      <HashRouter>
-        <Layout>
-          <Shell />
-        </Layout>
-      </HashRouter>
-    </AppProvider>
+    <RootBoundary>
+      <AppProvider>
+        <HashRouter>
+          <Layout>
+            <Shell />
+          </Layout>
+        </HashRouter>
+      </AppProvider>
+    </RootBoundary>
   );
 }

@@ -270,20 +270,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* ── Contenido ────────────────────────────────────────────────────── */}
+      {/* ── Contenido (la transición vive en Shell, con la ruta congelada) ── */}
       <main ref={mainRef} className="relative flex-1 overflow-y-auto overscroll-contain">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={loc.pathname}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, ease: [0.25, 1, 0.4, 1] }}
-            className="max-w-[1140px] mx-auto px-4 sm:px-6 pt-6 pb-32"
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
+        {children}
       </main>
 
       {/* ── Dock inferior centrada ───────────────────────────────────────── */}

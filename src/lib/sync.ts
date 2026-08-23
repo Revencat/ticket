@@ -62,6 +62,7 @@ function deviceInfo() {
 
 /** Crea (o abre) una cuenta: con las mismas credenciales en dos dispositivos quedan vinculados. */
 export async function provisionAccount(name: string, password: string): Promise<StoredAccount> {
+  if (!globalThis.crypto?.subtle) throw new Error("Web Crypto no disponible en este contexto");
   const key = await deriveKey(name, password);
   const raw = new Uint8Array(await crypto.subtle.exportKey("raw", key));
   const dev = deviceInfo();
