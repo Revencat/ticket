@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── TicketBox · libro de cuentas moderno ─────────────────────────────────── */
+:root {
+  --bg: #f1f2f0;
+  --card: #fbfbf9;
+  --card2: #f4f5f2;
+  --ink: #1a1b18;
+  --muted: #6b7268;
+  --line: #e1e2db;
+  --line2: #cfd1c6;
+  --accent: #e0452a;
+  --accent-soft: #e0452a1c;
+  --accent-ink: #ffffff;
+  --ok: #1f8a5b;
+  --warn: #b47d11;
+  --danger: #d63b47;
+  --photo-bg: #f6f6f2;
+  --ledger-line: rgba(26, 27, 24, 0.045);
+  --shadow-print: 3px 3px 0 0 rgba(26, 27, 24, 0.08);
+}
+
+.dark {
+  --bg: #16171a;
+  --card: #1d1f23;
+  --card2: #24272c;
+  --ink: #eceee9;
+  --muted: #99a196;
+  --line: #2b2e33;
+  --line2: #3c4046;
+  --accent: #e8502f;
+  --accent-soft: #e8502f24;
+  --accent-ink: #ffffff;
+  --ok: #3ec98d;
+  --warn: #e2b253;
+  --danger: #f07178;
+  --photo-bg: #202329;
+  --ledger-line: rgba(236, 238, 233, 0.035);
+  --shadow-print: 3px 3px 0 0 rgba(0, 0, 0, 0.35);
+}
+
+@theme inline {
+  --color-paper: var(--bg);
+  --color-card: var(--card);
+  --color-card2: var(--card2);
+  --color-ink: var(--ink);
+  --color-mut: var(--muted);
+  --color-line: var(--line);
+  --color-line2: var(--line2);
+  --color-acc: var(--accent);
+  --color-accink: var(--accent-ink);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-photobg: var(--photo-bg);
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fragment Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* papel de contabilidad: renglones tenues + lavado superior del acento */
+.bg-wash {
+  background:
+    radial-gradient(900px 380px at 82% -120px, var(--accent-soft), transparent 70%),
+    repeating-linear-gradient(to bottom, transparent 0 27px, var(--ledger-line) 27px 28px),
+    var(--bg);
+}
+
+.shadow-print {
+  box-shadow: var(--shadow-print);
+}
+
+/* área segura iOS para la dock */
+.dock-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
+}
+
+@keyframes scanline {
+  0% {
+    top: 2%;
+  }
+  100% {
+    top: 96%;
+  }
+}
+.scanline {
+  animation: scanline 1.7s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+.pulse-soft {
+  animation: pulse-soft 1.6s ease-in-out infinite;
+}
+
+@keyframes print-in {
+  from {
+    transform: translateY(-12px);
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+.print-in {
+  animation: print-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line2);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.55;
+}
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+
+/* números de importe con cifras alineadas */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
