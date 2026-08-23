@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Moon, Sun, Plus, Trash2, Sparkles, Database, Palette, Store as StoreIcon, Tag, Download, Check, Camera, Cpu, Lock, FileSpreadsheet, EyeOff, Cloud, MapPin } from "lucide-react";
+import { Moon, Sun, Plus, Trash2, Sparkles, Database, Palette, Store as StoreIcon, Tag, Download, Check, Camera, Cpu, Lock, FileSpreadsheet, EyeOff, Cloud, MapPin, PiggyBank } from "lucide-react";
 import { useApp, THEMES } from "../lib/store";
 import { cls, uid } from "../lib/util";
 import { Button, Toggle, Modal, inputCls, CatIcon } from "../components/ui";
@@ -59,6 +59,41 @@ export default function Settings() {
             </div>
           </div>
           <Toggle on={settings.dark} onChange={(v) => setSettings({ dark: v })} label="Modo oscuro" />
+        </div>
+      </section>
+
+      {/* Presupuesto mensual */}
+      <section className="bg-card border border-line rounded-xl p-5">
+        <h2 className="font-display font-bold text-[15px] flex items-center gap-2 mb-1"><PiggyBank size={16} className="text-acc" /> Presupuesto mensual</h2>
+        <p className="text-[12.5px] text-mut mb-4">
+          Si defines un tope de gasto, el panel te mostrará cuánto llevas del mes contra él y te avisará si te pasas.
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-44">
+            <label className="block text-[13px] font-medium text-mut mb-1.5" htmlFor="tb-budget">Tope mensual (€)</label>
+            <input
+              id="tb-budget"
+              type="number"
+              min={0}
+              step={10}
+              placeholder="p. ej. 600"
+              className={cls(inputCls, "font-mono tnum")}
+              defaultValue={settings.budget ?? ""}
+              onBlur={(e) => {
+                const v = parseFloat(e.target.value);
+                setSettings({ budget: Number.isFinite(v) && v > 0 ? Math.round(v * 100) / 100 : undefined });
+                if (Number.isFinite(v) && v > 0) toast("ok", `Presupuesto fijado en ${v.toLocaleString("es-ES")} €/mes.`);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              }}
+            />
+          </div>
+          {settings.budget ? (
+            <Button variant="ghost" onClick={() => { setSettings({ budget: undefined }); toast("info", "Presupuesto retirado."); }}>Quitar presupuesto</Button>
+          ) : (
+            <span className="text-[12px] text-mut pb-2.5">Sin presupuesto: el panel mostrará el ticket medio en su lugar.</span>
+          )}
         </div>
       </section>
 

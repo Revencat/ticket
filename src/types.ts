@@ -39,6 +39,7 @@ export interface Settings {
   dark: boolean;
   seeded: boolean;
   exportPhotos?: boolean; // recuerda la última opción de exportación
+  budget?: number; // presupuesto mensual (€)
 }
 
 export interface ToastMsg {

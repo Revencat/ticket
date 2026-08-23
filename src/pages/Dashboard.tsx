@@ -1,19 +1,18 @@
 import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, Cell,
-} from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from "recharts";
 import { format, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   ScanLine, Wallet, Receipt as ReceiptIcon, Percent, ShieldCheck, ChevronRight, AlertTriangle,
-  Store as StoreIcon, ArrowUpRight, TrendingUp, TrendingDown, Layers,
+  Store as StoreIcon, ArrowUpRight, TrendingUp, TrendingDown, Layers, Target, PiggyBank, Flame,
 } from "lucide-react";
 import { useApp } from "../lib/store";
 import { fmtEUR, relDate, monthKey, cls } from "../lib/util";
 import type { Ticket } from "../types";
 import { CatIcon, EmptyState, Button, CountUp, Dot } from "../components/ui";
+import TicketDetail from "../components/TicketDetail";
 
 interface MonthRow {
   key: string;
@@ -25,8 +24,9 @@ interface MonthRow {
 }
 
 export default function Dashboard() {
-  const { tickets, categories, accent } = useApp();
+  const { tickets, categories, accent, settings } = useApp();
   const nav = useNavigate();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -55,7 +55,6 @@ export default function Dashboard() {
 
     const cur = months[5];
     const prev = months[4];
-    const curMonthList = tickets.filter((t) => monthKey(t.date) === thisMonth);
     const prevSum = tickets.filter((t) => monthKey(t.date) === prevMonth).reduce((a, t) => a + t.total, 0);
     const delta = prevSum > 0 ? ((cur.total - prevSum) / prevSum) * 100 : null;
     const avg = months.reduce((a, m) => a + m.total, 0) / 6;
@@ -86,11 +85,14 @@ export default function Dashboard() {
       }
 
     const recent = [...tickets].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt).slice(0, 6);
-    return { months, cur, prev, delta, avg, topStores, active, soon, recent, thisMonth, prevCount: prev.count };
+    return { months, cur, prev, delta, avg, topStores, active, soon, recent };
   }, [tickets, categories]);
 
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const recentWithPhoto = stats.recent.some((t) => t.photo);
+  const selected = tickets.find((t) => t.id === selectedId) || null;
+  const budget = settings.budget && settings.budget > 0 ? settings.budget : null;
+  const budgetPct = budget ? (stats.cur.total / budget) * 100 : 0;
 
   const openCat = (id: string) => {
     nav("/tickets");
@@ -129,10 +131,15 @@ export default function Dashboard() {
       label: "Tickets este mes", num: stats.cur.count, icon: ReceiptIcon,
       extra: <span className="text-[12px] text-mut">{tickets.length} en total</span>,
     },
-    {
-      label: "Ticket medio", num: stats.cur.count ? stats.cur.total / stats.cur.count : 0, fmt: fmtEUR, icon: Percent,
-      extra: <span className="text-[12px] text-mut">en el mes en curso</span>,
-    },
+    budget
+      ? {
+          label: "Presupuesto mensual", num: 0, icon: budgetPct > 100 ? Flame : PiggyBank, isBudget: true as const,
+          extra: null as never,
+        }
+      : {
+          label: "Ticket medio", num: stats.cur.count ? stats.cur.total / stats.cur.count : 0, fmt: fmtEUR, icon: Percent,
+          extra: <span className="text-[12px] text-mut">en el mes en curso</span>,
+        },
     {
       label: "Garantías activas", num: stats.active, icon: ShieldCheck,
       extra: stats.soon > 0
@@ -151,16 +158,39 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="bg-card border border-line rounded-xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all"
+            className="bg-card border border-line rounded-xl p-4 hover:shadow-print hover:-translate-y-0.5 transition-all"
           >
             <div className="flex items-center justify-between">
               <p className="text-[12.5px] font-medium text-mut">{t.label}</p>
               <t.icon size={16} className="text-acc" />
             </div>
-            <p className="font-mono font-semibold text-[24px] mt-1.5 tracking-tight leading-none">
-              <CountUp value={t.num} format={t.fmt} />
-            </p>
-            <div className="mt-2">{t.extra}</div>
+            {"isBudget" in t && t.isBudget ? (
+              <>
+                <p className="font-mono font-semibold text-[22px] mt-1.5 tracking-tight leading-none tnum">
+                  <CountUp value={budgetPct} format={(n) => `${Math.round(n)}%`} />
+                </p>
+                <div className="mt-2.5 h-1.5 rounded-full bg-card2 overflow-hidden">
+                  <motion.div
+                    className={cls("h-full rounded-full", budgetPct > 100 ? "bg-danger" : budgetPct > 80 ? "bg-warn" : "bg-acc")}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(budgetPct, 100)}%` }}
+                    transition={{ duration: 0.7, ease: "easeOut", delay: 0.25 }}
+                  />
+                </div>
+                <p className={cls("text-[11.5px] mt-1.5 font-mono tnum", budgetPct > 100 ? "text-danger font-semibold" : "text-mut")}>
+                  {budgetPct > 100
+                    ? `${fmtEUR(stats.cur.total - budget!)} por encima`
+                    : `quedan ${fmtEUR(budget! - stats.cur.total)}`}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-mono font-semibold text-[24px] mt-1.5 tracking-tight leading-none tnum">
+                  <CountUp value={("num" in t ? t.num : 0) as number} format={("fmt" in t ? t.fmt : undefined) as ((n: number) => string) | undefined} />
+                </p>
+                <div className="mt-2">{"extra" in t ? t.extra : null}</div>
+              </>
+            )}
           </motion.div>
         ))}
       </div>
@@ -169,15 +199,15 @@ export default function Dashboard() {
       <div className="grid lg:grid-cols-5 gap-4">
         <motion.section
           initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="lg:col-span-3 bg-card border border-line rounded-xl p-5"
+          className="lg:col-span-3 bg-card border border-line rounded-xl p-5 hover:shadow-print transition-shadow"
         >
           <div className="flex items-start justify-between mb-1">
             <div>
-              <h2 className="font-display font-bold text-[16px]">Ritmo de gasto</h2>
+              <h2 className="font-display font-extrabold text-[17px] tracking-[-0.01em]">Ritmo de gasto</h2>
               <p className="text-[12px] text-mut mt-0.5">últimos 6 meses</p>
             </div>
             <div className="text-right">
-              <p className="font-mono font-semibold text-[20px] leading-none">
+              <p className="font-mono font-semibold text-[20px] leading-none tnum">
                 <CountUp value={stats.cur.total} format={fmtEUR} />
               </p>
               <p className="text-[11px] text-mut mt-1">
@@ -197,18 +227,15 @@ export default function Dashboard() {
 
         <motion.section
           initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}
-          className="lg:col-span-2 relative overflow-hidden bg-[#171b1e] text-[#e9ecea] border border-black/40 rounded-xl p-5"
+          className="lg:col-span-2 bg-card border border-line rounded-xl p-5 hover:shadow-print transition-shadow"
         >
-          <div className="absolute inset-x-0 top-0 h-28 pointer-events-none bg-glow" />
-          <div className="relative">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="font-display font-bold text-[16px] flex items-center gap-2"><Layers size={15} className="text-acc" /> En qué se va</h2>
-                <p className="text-[12px] text-[#8b948e] mt-0.5">composición por categoría · mes a mes</p>
-              </div>
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="font-display font-extrabold text-[17px] tracking-[-0.01em] flex items-center gap-2"><Layers size={15} className="text-acc" /> En qué se va</h2>
+              <p className="text-[12px] text-mut mt-0.5">composición por categoría · mes a mes</p>
             </div>
-            <CompositionChart months={stats.months} onCat={openCat} />
           </div>
+          <CompositionChart months={stats.months} onCat={openCat} />
         </motion.section>
       </div>
 
@@ -216,11 +243,11 @@ export default function Dashboard() {
       <div className="grid lg:grid-cols-5 gap-4">
         <motion.section
           initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="lg:col-span-3 bg-card border border-line rounded-xl p-5"
+          className="lg:col-span-3 bg-card border border-line rounded-xl p-5 hover:shadow-print transition-shadow"
         >
           <div className="flex items-start justify-between mb-3">
             <div>
-              <h2 className="font-display font-bold text-[16px] flex items-center gap-2"><StoreIcon size={15} className="text-acc" /> Top tiendas</h2>
+              <h2 className="font-display font-extrabold text-[17px] tracking-[-0.01em] flex items-center gap-2"><StoreIcon size={15} className="text-acc" /> Top tiendas</h2>
               <p className="text-[12px] text-mut mt-0.5">dónde más gastas · todo el archivo</p>
             </div>
             <span className="text-[12px] text-mut font-mono">{stats.topStores.length} tiendas</span>
@@ -243,14 +270,14 @@ export default function Dashboard() {
                       className="absolute inset-y-0 left-0 bg-acc/10 group-hover:bg-acc/16 transition-colors"
                     />
                     <span className="relative flex items-center gap-3 px-3.5 py-2.5">
-                      <span className={cls("font-mono text-[11.5px] w-6 shrink-0", i === 0 ? "text-acc font-bold" : "text-mut")}>
+                      <span className={cls("font-mono text-[11.5px] w-6 shrink-0 tnum", i === 0 ? "text-acc font-bold" : "text-mut")}>
                         {String(i + 1).padStart(2, "0")}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block font-display font-semibold text-[14px] truncate group-hover:text-acc transition-colors">{s.store}</span>
-                        <span className="block text-[11.5px] text-mut">{s.count} ticket{s.count > 1 ? "s" : ""} · media {fmtEUR(s.avg)}</span>
+                        <span className="block text-[11.5px] text-mut tnum">{s.count} ticket{s.count > 1 ? "s" : ""} · media {fmtEUR(s.avg)}</span>
                       </span>
-                      <span className="font-mono font-semibold text-[14.5px]">{fmtEUR(s.total)}</span>
+                      <span className="font-mono font-semibold text-[14.5px] tnum">{fmtEUR(s.total)}</span>
                       <ArrowUpRight size={15} className="text-mut opacity-0 group-hover:opacity-100 group-hover:text-acc transition-all shrink-0" />
                     </span>
                   </button>
@@ -263,12 +290,12 @@ export default function Dashboard() {
 
         <motion.section
           initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24 }}
-          className="lg:col-span-2 bg-card border border-line rounded-xl p-5"
+          className="lg:col-span-2 bg-card border border-line rounded-xl p-5 hover:shadow-print transition-shadow"
         >
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="font-display font-bold text-[16px]">Actividad reciente</h2>
-              <p className="text-[12px] text-mut mt-0.5">últimos archivados</p>
+              <h2 className="font-display font-extrabold text-[17px] tracking-[-0.01em]">Actividad reciente</h2>
+              <p className="text-[12px] text-mut mt-0.5">toca un ticket para abrirlo</p>
             </div>
             <Link to="/tickets" className="text-[12.5px] text-acc font-medium hover:underline">Ver todos</Link>
           </div>
@@ -283,7 +310,10 @@ export default function Dashboard() {
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.04 }}
                 >
-                  <Link to="/tickets" className="flex items-center gap-3 px-2.5 py-2 -mx-1 rounded-lg hover:bg-card2 transition-colors group cursor-pointer">
+                  <button
+                    onClick={() => setSelectedId(t.id)}
+                    className="w-full flex items-center gap-3 px-2.5 py-2 -mx-1 rounded-lg hover:bg-card2 transition-colors group cursor-pointer text-left"
+                  >
                     {recentWithPhoto && (
                       <span className="w-9 h-9 rounded-md overflow-hidden border border-line bg-photobg shrink-0">
                         {t.photo ? <img src={t.photo} alt="" className="w-full h-full object-cover" loading="lazy" /> : <span className="w-full h-full flex items-center justify-center text-mut"><ReceiptIcon size={14} /></span>}
@@ -296,13 +326,19 @@ export default function Dashboard() {
                       </span>
                       <span className="block text-[11.5px] text-mut">{relDate(t.date)} · {cat?.name || "Otros"}</span>
                     </span>
-                    <span className="font-mono font-semibold text-[13.5px] shrink-0">{fmtEUR(t.total)}</span>
+                    <span className="font-mono font-semibold text-[13.5px] shrink-0 tnum">{fmtEUR(t.total)}</span>
                     <ChevronRight size={14} className="text-mut opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                  </Link>
+                  </button>
                 </motion.li>
               );
             })}
           </ul>
+          {!budget && (
+            <p className="mt-3 pt-3 border-t border-line text-[11.5px] text-mut flex items-center gap-1.5">
+              <Target size={12} className="text-acc shrink-0" />
+              Consejo: define un presupuesto mensual en Ajustes y verás aquí tu consumo contra él.
+            </p>
+          )}
         </motion.section>
       </div>
 
@@ -324,6 +360,8 @@ export default function Dashboard() {
           <p className="text-[13.5px]"><strong className="text-ok font-semibold">Garantías bajo control</strong><span className="text-mut"> — ningún producto caduca en los próximos 60 días.</span></p>
         </div>
       )}
+
+      <TicketDetail ticket={selected} onClose={() => setSelectedId(null)} />
     </div>
   );
 }
@@ -339,15 +377,15 @@ function RhythmChart({ months, accent, avg }: { months: MonthRow[]; accent: stri
     const m = payload[0].payload;
     const idx = months.findIndex((x) => x.key === m.key);
     const prevT = idx > 0 ? months[idx - 1].total : 0;
-    const delta = prevT > 0 ? ((m.total - prevT) / prevT) * 100 : null;
+    const d = prevT > 0 ? ((m.total - prevT) / prevT) * 100 : null;
     return (
-      <div className="bg-card border border-line rounded-lg shadow-xl px-3.5 py-2.5 text-[12.5px] min-w-[150px]">
-        <p className="font-display font-semibold text-[13px] capitalize mb-1">{m.full}</p>
-        <p className="font-mono font-semibold text-[15px]">{fmtEUR(m.total)}</p>
+      <div className="bg-card border border-line2 rounded-lg shadow-xl px-3.5 py-2.5 text-[12.5px] min-w-[150px]">
+        <p className="font-display font-bold text-[13px] capitalize mb-1">{m.full}</p>
+        <p className="font-mono font-semibold text-[15px] tnum">{fmtEUR(m.total)}</p>
         <p className="text-mut mt-0.5">
           {m.count} ticket{m.count !== 1 && "s"}
-          {delta !== null && (
-            <span className={delta > 0 ? "text-warn" : "text-ok"}> · {delta > 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(0)}%</span>
+          {d !== null && (
+            <span className={d > 0 ? "text-warn" : "text-ok"}> · {d > 0 ? "▲" : "▼"} {Math.abs(d).toFixed(0)}%</span>
           )}
         </p>
       </div>
@@ -355,21 +393,23 @@ function RhythmChart({ months, accent, avg }: { months: MonthRow[]; accent: stri
   };
 
   return (
-    <div className="relative">
+    <div className="relative h-full">
       {avg > 0 && (
-        <div className="absolute left-10 right-2 z-10 pointer-events-none" style={{ bottom: 22 + (avg / max) * 196 }}>
-          <div className="border-t border-dashed" style={{ borderColor: accent + "77" }} />
+        <div
+          className="absolute left-10 right-2 z-10 pointer-events-none"
+          style={{ bottom: `calc(${((avg / (max * 1.12)) * 100).toFixed(1)}% )`, transform: "translateY(-14px)" }}
+        >
+          <div className="border-t border-dashed" style={{ borderColor: accent + "88" }} />
           <span className="absolute right-0 -top-[9px] text-[10px] font-mono px-1.5 rounded" style={{ color: accent, background: "var(--card)" }}>
             media {fmtEUR(avg)}
           </span>
         </div>
       )}
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" debounce={1}>
         <BarChart data={data} margin={{ top: 8, right: 4, left: 4, bottom: 0 }} barCategoryGap="28%">
           <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "var(--muted)", fontSize: 11.5 }} dy={6} />
           <YAxis hide domain={[0, max * 1.12]} />
           <Tooltip cursor={{ fill: "var(--card2)" }} content={<TipContent />} />
-          <ReferenceLine y={0} stroke="var(--line)" />
           <Bar
             dataKey="total"
             radius={[7, 7, 2, 2]}
@@ -399,7 +439,6 @@ function CompositionChart({ months, onCat }: { months: MonthRow[]; onCat: (id: s
   const [tip, setTip] = useState<{ x: number; y: number; name: string; color: string; total: number; pct: number; month: string } | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
 
-  // totales del periodo por categoría (para la leyenda)
   const totals = useMemo(() => {
     const m = new Map<string, { name: string; color: string; total: number }>();
     let grand = 0;
@@ -427,10 +466,10 @@ function CompositionChart({ months, onCat }: { months: MonthRow[]; onCat: (id: s
           const isCurrent = ri === 0;
           return (
             <div key={m.key} className="flex items-center gap-2.5">
-              <span className={cls("w-9 text-[11px] font-mono shrink-0 capitalize", isCurrent ? "text-[#e9ecea] font-bold" : "text-[#8b948e]")}>
+              <span className={cls("w-9 text-[11px] font-mono shrink-0 capitalize", isCurrent ? "text-ink font-bold" : "text-mut")}>
                 {m.short}
               </span>
-              <div className={cls("flex-1 h-[19px] flex rounded-[5px] overflow-hidden", m.total === 0 && "bg-white/8")}>
+              <div className={cls("flex-1 h-[19px] flex rounded-[5px] overflow-hidden", m.total === 0 && "bg-card2")}>
                 {m.byCat.map((c) => (
                   <motion.div
                     key={c.id}
@@ -446,14 +485,14 @@ function CompositionChart({ months, onCat }: { months: MonthRow[]; onCat: (id: s
                     style={{
                       width: `${Math.max(c.pct, 3.5)}%`,
                       background: c.color,
-                      opacity: active === null || active === c.id ? 1 : 0.3,
+                      opacity: active === null || active === c.id ? 1 : 0.25,
                       transition: "opacity .18s",
-                      boxShadow: active === c.id ? `0 0 0 1.5px rgba(255,255,255,.75) inset` : undefined,
+                      boxShadow: active === c.id ? `0 0 0 1.5px var(--card) inset, 0 0 0 3px ${c.color} inset` : undefined,
                     }}
                   />
                 ))}
               </div>
-              <span className="w-[64px] text-right font-mono text-[11px] shrink-0 text-[#b9c0ba]">
+              <span className="w-[64px] text-right font-mono text-[11px] shrink-0 text-mut tnum">
                 {m.total > 0 ? fmtEUR(m.total) : "—"}
               </span>
             </div>
@@ -463,18 +502,18 @@ function CompositionChart({ months, onCat }: { months: MonthRow[]; onCat: (id: s
 
       {tip && (
         <div
-          className="absolute z-20 pointer-events-none bg-[#22272b] border border-white/10 rounded-lg px-3 py-2 shadow-xl"
+          className="absolute z-20 pointer-events-none bg-ink text-paper border border-line2 rounded-lg px-3 py-2 shadow-xl"
           style={{ left: Math.min(tip.x + 12, (boxRef.current?.clientWidth || 300) - 170), top: tip.y - 62 }}
         >
           <p className="flex items-center gap-1.5 text-[12px] font-semibold">
             <Dot color={tip.color} /> {tip.name}
           </p>
-          <p className="font-mono text-[13px] mt-0.5">{fmtEUR(tip.total)} <span className="text-[#8b948e]">· {tip.pct.toFixed(0)}% de {tip.month}</span></p>
+          <p className="font-mono text-[13px] mt-0.5 tnum">{fmtEUR(tip.total)} <span className="opacity-60">· {tip.pct.toFixed(0)}% de {tip.month}</span></p>
         </div>
       )}
 
-      <div className="mt-5 pt-4 border-t border-white/10">
-        <p className="text-[11px] text-[#8b948e] mb-2.5">Total 6 meses · <span className="font-mono text-[#e9ecea]">{fmtEUR(totals.grand)}</span> — toca una categoría para ver sus tickets</p>
+      <div className="mt-5 pt-4 border-t border-line">
+        <p className="text-[11px] text-mut mb-2.5">Total 6 meses · <span className="font-mono text-ink tnum">{fmtEUR(totals.grand)}</span> — toca una categoría para ver sus tickets</p>
         <div className="flex flex-wrap gap-x-4 gap-y-2">
           {totals.rows.map((r) => (
             <button
@@ -486,8 +525,8 @@ function CompositionChart({ months, onCat }: { months: MonthRow[]; onCat: (id: s
               style={{ opacity: active === null || active === r.id ? 1 : 0.4 }}
             >
               <Dot color={r.color} />
-              <span className="text-[#b9c0ba]">{r.name}</span>
-              <span className="font-mono text-[#e9ecea]">{r.pct.toFixed(0)}%</span>
+              <span className="text-mut">{r.name}</span>
+              <span className="font-mono text-ink tnum">{r.pct.toFixed(0)}%</span>
             </button>
           ))}
         </div>

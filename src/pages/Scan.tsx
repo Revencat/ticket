@@ -146,10 +146,29 @@ export default function Scan() {
     };
     window.setTimeout(() => {
       addTicket(ticket);
-      toast("ok", `Ticket de ${fmtEUR(ticket.total)} archivado en ${categories.find((c) => c.id === category)?.name || "Otros"}.`);
+      toast("ok", `Ticket de ${fmtEUR(ticket.total)} archivado en ${categories.find((c) => c.id === category)?.name || "Otros"}.`, {
+        label: "Ver ticket",
+        run: () => {
+          nav("/tickets");
+          window.setTimeout(() => window.dispatchEvent(new CustomEvent("tb:open-ticket", { detail: ticket.id })), 180);
+        },
+      });
       nav("/tickets");
     }, 250);
   };
+
+  // guardar con Ctrl/Cmd + Enter durante la revisión
+  useEffect(() => {
+    if (phase !== "review") return;
+    const h = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        saveTicket();
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  });
 
   const pct = progress.pct === null ? null : Math.round(progress.pct * 100);
 

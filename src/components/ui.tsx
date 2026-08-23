@@ -118,10 +118,11 @@ export function CatIcon({ id, size = 16, className }: { id: string; size?: numbe
 export function Logo({ size = 30 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 96 96" aria-hidden>
-      <rect width="96" height="96" rx="22" fill="var(--accent)" />
-      <path d="M30 20h36v52l-4.5-3.6-4.5 3.6-4.5-3.6-4.5 3.6-4.5-3.6-4.5 3.6-4.5-3.6L30 72z" fill="#fbfcfa" />
-      <path d="M37 32h22M37 40h22M37 48h13" stroke="#9aa39d" strokeWidth="4.5" strokeLinecap="round" />
-      <rect x="37" y="55" width="22" height="7" rx="2" fill="var(--accent)" />
+      <rect x="3" y="3" width="90" height="90" rx="19" fill="var(--ink)" />
+      <rect x="8" y="8" width="80" height="80" rx="14" fill="none" stroke="var(--accent)" strokeWidth="3" strokeDasharray="7 5" />
+      <path d="M30 24h36v44l-4.5-3.4-4.5 3.4-4.5-3.4-4.5 3.4-4.5-3.4-4.5 3.4-4.5-3.4L30 68z" fill="#fbfbf9" />
+      <path d="M36.5 34h23M36.5 41h23M36.5 48h12" stroke="#b9bcb2" strokeWidth="4" strokeLinecap="round" />
+      <rect x="36.5" y="54.5" width="23" height="7" rx="1.5" fill="var(--accent)" />
     </svg>
   );
 }

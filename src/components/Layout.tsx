@@ -172,12 +172,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="h-full flex flex-col overflow-hidden bg-wash">
       {/* ── Cabecera ─────────────────────────────────────────────────────── */}
-      <header className="h-14 shrink-0 flex items-center gap-3 px-4 sm:px-6 border-b border-line bg-card/85 backdrop-blur z-30">
-        <NavLink to="/" className="flex items-center gap-2.5 cursor-pointer">
-          <Logo size={27} />
-          <span className="font-display font-bold text-[16px] tracking-tight hidden sm:inline">TicketBox</span>
+      <header className="h-14 shrink-0 flex items-center gap-3 px-4 sm:px-6 border-b border-line2/70 bg-card/92 backdrop-blur z-30">
+        <NavLink to="/" className="flex items-center gap-2.5 cursor-pointer group">
+          <motion.span whileHover={{ rotate: -7, scale: 1.05 }} transition={{ type: "spring", stiffness: 400, damping: 16 }} className="inline-flex">
+            <Logo size={28} />
+          </motion.span>
+          <span className="font-display font-extrabold text-[17px] tracking-[-0.02em] hidden sm:inline">
+            Ticket<span className="text-acc">Box</span>
+          </span>
         </NavLink>
-        <span className="w-px h-5 bg-line hidden sm:block" />
+        <span className="w-px h-5 bg-line2 hidden sm:block" />
         <AnimatePresence mode="wait">
           <motion.h1
             key={title}
@@ -185,7 +189,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -7 }}
             transition={{ duration: 0.16 }}
-            className="font-display font-semibold text-[15px] text-ink truncate"
+            className="font-display font-bold text-[15px] text-ink truncate tracking-[-0.01em]"
           >
             {title}
           </motion.h1>
@@ -281,7 +285,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           initial={{ y: 90, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.1 }}
-          className="pointer-events-auto dock-safe flex items-end gap-0.5 px-1.5 pt-1 pb-0.5 rounded-[22px] border border-line bg-card/95 backdrop-blur-xl shadow-[0_10px_36px_-10px_rgba(0,0,0,0.3)]"
+          className="pointer-events-auto dock-safe flex items-end gap-0.5 px-1.5 pt-1 pb-0.5 rounded-[20px] bg-[#1a1b18] dark:bg-[#0f1113] border border-black/20 dark:border-white/5 shadow-[0_14px_40px_-12px_rgba(0,0,0,0.55)]"
         >
           {NAV.slice(0, 3).map((item) => (
             <DockItem
@@ -332,6 +336,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               ["Buscar en tickets", "/"],
               ["Ir a exportar", "E"],
               ["Alternar modo oscuro", "T"],
+              ["Guardar durante el escaneo", "⌘ ⏎"],
               ["Paleta de comandos", "⌘ K"],
               ["Cerrar ventanas", "Esc"],
             ].map(([label, k]) => (
@@ -410,13 +415,13 @@ function DockItem({ to, label, icon: Icon, badge, badgeTone }: { to: string; lab
           whileHover={{ y: -3 }}
           whileTap={{ scale: 0.88 }}
           transition={{ type: "spring", stiffness: 500, damping: 26 }}
-          className={cls("relative flex flex-col items-center justify-center w-[50px] sm:w-[60px] h-[50px] sm:h-[52px] rounded-xl cursor-pointer", !isActive && "hover:bg-card2")}
+          className={cls("relative flex flex-col items-center justify-center w-[50px] sm:w-[60px] h-[50px] sm:h-[52px] rounded-xl cursor-pointer", !isActive && "hover:bg-white/10")}
         >
           {isActive && (
-            <motion.span layoutId="dock-pill" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-xl bg-acc/10" />
+            <motion.span layoutId="dock-pill" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-xl bg-acc/15" />
           )}
           <span className="relative">
-            <Icon size={20} className={cls("transition-colors", isActive ? "text-acc" : "text-mut group-hover:text-ink")} strokeWidth={isActive ? 2.3 : 2} />
+            <Icon size={20} className={cls("transition-colors", isActive ? "text-acc" : "text-[#9aa196] group-hover:text-[#eceee9]")} strokeWidth={isActive ? 2.3 : 2} />
             {badge > 0 && (
               <motion.span
                 initial={{ scale: 0 }}
@@ -424,7 +429,7 @@ function DockItem({ to, label, icon: Icon, badge, badgeTone }: { to: string; lab
                 transition={{ type: "spring", stiffness: 500, damping: 20 }}
                 className={cls(
                   "absolute -top-1.5 -right-2.5 min-w-[16px] h-[16px] px-1 rounded-full text-[9.5px] font-mono font-bold flex items-center justify-center leading-none",
-                  badgeTone === "warn" ? "bg-warn text-white" : "bg-line2 text-ink"
+                  badgeTone === "warn" ? "bg-warn text-white" : "bg-[#eceee9] text-[#1a1b18]"
                 )}
               >
                 {badge > 99 ? "99+" : badge}
@@ -435,7 +440,7 @@ function DockItem({ to, label, icon: Icon, badge, badgeTone }: { to: string; lab
           <span
             className={cls(
               "relative text-[9.5px] font-medium leading-none mt-0.5 transition-all duration-200",
-              isActive ? "text-acc opacity-100" : "text-mut opacity-0 md:opacity-70 invisible md:visible"
+              isActive ? "text-acc opacity-100" : "text-[#8b928a] opacity-0 md:opacity-80 invisible md:visible"
             )}
           >
             {label}

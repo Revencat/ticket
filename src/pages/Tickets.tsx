@@ -1,17 +1,18 @@
-import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Search, Receipt as ReceiptIcon, Trash2, ScanLine, X, Image as ImageIcon, ShieldCheck, CalendarDays, Save, Inbox, Copy } from "lucide-react";
+import { Search, Receipt as ReceiptIcon, ScanLine, X, Image as ImageIcon, ShieldCheck, CalendarDays } from "lucide-react";
 import { useApp } from "../lib/store";
 import { parseQuery } from "../lib/nl";
-import { fmtEUR, fmtDate, fmtMonth, monthKey, cls, todayISO, relDate, uid } from "../lib/util";
+import { fmtEUR, fmtMonth, monthKey, cls, relDate } from "../lib/util";
 import type { Ticket } from "../types";
-import { Button, Chip, CatIcon, Modal, EmptyState, IconBtn, inputCls, Field } from "../components/ui";
+import { Button, Chip, CatIcon, EmptyState, inputCls } from "../components/ui";
+import TicketDetail from "../components/TicketDetail";
 
 type SortKey = "date-desc" | "date-asc" | "total-desc";
 
 export default function Tickets() {
-  const { tickets, categories, allStores, deleteTicket, restoreTicket, updateTicket, addTicket, toast } = useApp();
+  const { tickets, categories, allStores } = useApp();
   const [query, setQuery] = useState("");
   const [catFilter, setCatFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("date-desc");
@@ -22,13 +23,16 @@ export default function Tickets() {
     const focus = () => searchRef.current?.focus();
     const filterCat = (e: Event) => setCatFilter((e as CustomEvent).detail);
     const setQueryEvt = (e: Event) => setQuery((e as CustomEvent).detail as string);
+    const openTicket = (e: Event) => setSelectedId((e as CustomEvent).detail as string);
     window.addEventListener("tb:focus-search", focus);
     window.addEventListener("tb:filter-cat", filterCat);
     window.addEventListener("tb:set-query", setQueryEvt);
+    window.addEventListener("tb:open-ticket", openTicket);
     return () => {
       window.removeEventListener("tb:focus-search", focus);
       window.removeEventListener("tb:filter-cat", filterCat);
       window.removeEventListener("tb:set-query", setQueryEvt);
+      window.removeEventListener("tb:open-ticket", openTicket);
     };
   }, []);
 
@@ -83,15 +87,10 @@ export default function Tickets() {
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const selected = tickets.find((t) => t.id === selectedId) || null;
 
-  const removeWithUndo = (t: Ticket) => {
-    deleteTicket(t.id);
-    toast("info", `Ticket de ${t.store} eliminado.`, { label: "Deshacer", run: () => restoreTicket(t) });
-  };
-
   return (
     <div className="space-y-4">
       {/* buscador + orden */}
-      <div className="bg-card border border-line rounded-xl p-3.5">
+      <div className="bg-card border border-line rounded-xl p-3.5 shadow-print/0">
         <div className="flex flex-col sm:flex-row gap-2.5">
           <div className="relative flex-1">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-mut" />
@@ -103,7 +102,7 @@ export default function Tickets() {
               className={cls(inputCls, "pl-9 pr-8")}
             />
             {query && (
-              <button onClick={() => setQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mut hover:text-ink cursor-pointer">
+              <button onClick={() => setQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mut hover:text-ink cursor-pointer" aria-label="Borrar búsqueda">
                 <X size={14} />
               </button>
             )}
@@ -136,7 +135,7 @@ export default function Tickets() {
             {nl.chips.map((c) => (
               <Chip key={c} color="var(--accent)" onRemove={() => setQuery("")}>{c}</Chip>
             ))}
-            <span className="ml-auto text-[12px] font-mono text-mut">
+            <span className="ml-auto text-[12px] font-mono text-mut tnum">
               {filtered.length} resultado{filtered.length !== 1 && "s"} · <strong className="text-ink">{fmtEUR(totalFiltered)}</strong>
             </span>
           </div>
@@ -163,7 +162,7 @@ export default function Tickets() {
           <section key={month}>
             <div className="flex items-baseline gap-3 mb-2.5 px-1">
               <h2 className="font-display font-bold text-[14px] flex items-center gap-2"><CalendarDays size={14} className="text-acc" /> {fmtMonth(list[0].date)}</h2>
-              <span className="text-[12px] font-mono text-mut">{list.length} ticket{list.length !== 1 && "s"} · {fmtEUR(list.reduce((a, t) => a + t.total, 0))}</span>
+              <span className="text-[12px] font-mono text-mut tnum">{list.length} ticket{list.length !== 1 && "s"} · {fmtEUR(list.reduce((a, t) => a + t.total, 0))}</span>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
               {list.map((t, i) => {
@@ -179,7 +178,7 @@ export default function Tickets() {
                     transition={{ delay: Math.min(i * 0.04, 0.3), type: "spring", stiffness: 300, damping: 26 }}
                     whileHover={{ y: -4 }}
                     onClick={() => setSelectedId(t.id)}
-                    className="group bg-card border border-line rounded-xl overflow-hidden text-left hover:border-line2 hover:shadow-lg hover:shadow-black/6 transition-all cursor-pointer"
+                    className="group bg-card border border-line rounded-xl overflow-hidden text-left hover:border-line2 hover:shadow-print transition-all cursor-pointer"
                   >
                     <div className="relative h-44 bg-photobg border-b border-line overflow-hidden flex items-center justify-center p-3">
                       {t.photo ? (
@@ -200,7 +199,7 @@ export default function Tickets() {
                       <p className="font-display font-semibold text-[14px] truncate group-hover:text-acc transition-colors">{t.store}</p>
                       <div className="flex items-center justify-between mt-1">
                         <span className="text-[11.5px] text-mut">{relDate(t.date)} · {t.items.length} art.{t.source === "sync" ? " · sync" : ""}</span>
-                        <span className="font-mono font-semibold text-[13.5px]">{fmtEUR(t.total)}</span>
+                        <span className="font-mono font-semibold text-[13.5px] tnum">{fmtEUR(t.total)}</span>
                       </div>
                     </div>
                   </motion.button>
@@ -211,12 +210,7 @@ export default function Tickets() {
         ))
       )}
 
-      <DetailModal ticket={selected} onClose={() => setSelectedId(null)} onDelete={removeWithUndo} onDuplicate={(t) => {
-        const copy: Ticket = { ...t, id: uid(), createdAt: Date.now(), updatedAt: Date.now(), items: t.items.map((i) => ({ ...i, id: uid() })) };
-        addTicket(copy);
-        toast("ok", `Ticket de ${t.store} duplicado.`);
-        setSelectedId(copy.id);
-      }} />
+      <TicketDetail ticket={selected} onClose={() => setSelectedId(null)} />
     </div>
   );
 }
@@ -239,126 +233,13 @@ function FilterChip({ active, onClick, label, count, color, icon }: {
         "relative flex items-center gap-1.5 px-3 h-8 rounded-full text-[12.5px] font-medium border transition-all duration-150 cursor-pointer whitespace-nowrap shrink-0",
         active
           ? "border-transparent shadow-sm"
-          : "border-line2 bg-card text-mut hover:text-ink hover:border-line2 hover:bg-card2"
+          : "border-line2 bg-card text-mut hover:text-ink hover:bg-card2"
       )}
       style={active ? { background: color || "var(--ink)", color: color ? "#fff" : "var(--card)" } : undefined}
     >
       {icon}
       {label}
-      <span className={cls("font-mono text-[10.5px] px-1.5 py-px rounded-full", active ? "bg-white/25" : "bg-card2")}>{count}</span>
+      <span className={cls("font-mono text-[10.5px] px-1.5 py-px rounded-full tnum", active ? "bg-white/25" : "bg-card2")}>{count}</span>
     </motion.button>
-  );
-}
-
-/* ── Modal de detalle ────────────────────────────────────────────────────── */
-function DetailModal({ ticket, onClose, onDelete, onDuplicate }: {
-  ticket: Ticket | null;
-  onClose: () => void;
-  onDelete: (t: Ticket) => void;
-  onDuplicate: (t: Ticket) => void;
-}) {
-  const { categories, updateTicket, toast } = useApp();
-  const [store, setStore] = useState("");
-  const [date, setDate] = useState(todayISO());
-  const [total, setTotal] = useState("");
-  const [category, setCategory] = useState("otros");
-  const [note, setNote] = useState("");
-
-  useEffect(() => {
-    if (ticket) {
-      setStore(ticket.store);
-      setDate(ticket.date);
-      setTotal(String(ticket.total).replace(".", ","));
-      setCategory(ticket.category);
-      setNote(ticket.note || "");
-    }
-  }, [ticket?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
-  const cat = ticket ? catById.get(ticket.category) : undefined;
-  const dirty =
-    ticket &&
-    (store !== ticket.store || date !== ticket.date || total !== String(ticket.total).replace(".", ",") || category !== ticket.category || note !== (ticket.note || ""));
-
-  return (
-    <Modal open={!!ticket} onClose={onClose} wide>
-      {ticket && (
-        <div className="grid md:grid-cols-2">
-          <div className="bg-photobg border-b md:border-b-0 md:border-r border-line p-5 flex flex-col">
-            <p className="text-[13px] font-medium text-mut mb-3">Foto archivada</p>
-            {ticket.photo ? (
-              <img src={ticket.photo} alt={`Ticket de ${ticket.store}`} className="flex-1 min-h-0 object-contain rounded-lg border border-line bg-white max-h-[420px] w-full" />
-            ) : (
-              <div className="flex-1 rounded-lg border border-dashed border-line2 flex flex-col items-center justify-center gap-2 text-mut text-sm min-h-[220px]">
-                <ImageIcon size={26} /> Sin foto
-              </div>
-            )}
-          </div>
-          <div className="p-5 space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-display font-bold text-xl leading-tight">{ticket.store}</h3>
-                <p className="text-[12.5px] text-mut mt-1">
-                  {cat?.name || "Otros"} · {fmtDate(ticket.date)}{ticket.source === "sync" ? " · recibido por sincronización" : ""}
-                </p>
-              </div>
-              <IconBtn onClick={onClose} title="Cerrar"><X size={18} /></IconBtn>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Tienda"><input className={inputCls} value={store} onChange={(e) => setStore(e.target.value)} /></Field>
-              <Field label="Fecha"><input type="date" className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-              <Field label="Total (€)"><input className={cls(inputCls, "font-mono")} value={total} onChange={(e) => setTotal(e.target.value)} inputMode="decimal" /></Field>
-              <Field label="Categoría">
-                <select className={inputCls} value={category} onChange={(e) => setCategory(e.target.value)}>
-                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </Field>
-            </div>
-
-            {ticket.items.length > 0 && (
-              <div>
-                <p className="text-[13px] font-medium text-mut mb-2">Productos ({ticket.items.length})</p>
-                <ul className="border border-line rounded-lg divide-y divide-line max-h-[150px] overflow-y-auto text-[13px]">
-                  {ticket.items.map((it) => (
-                    <li key={it.id} className="flex items-center gap-2 px-3 py-2">
-                      <span className="truncate flex-1">{it.name}</span>
-                      {it.warrantyMonths > 0 && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-mono text-ok bg-ok/10 rounded px-1.5 py-0.5">
-                          <ShieldCheck size={11} /> {it.warrantyMonths} m
-                        </span>
-                      )}
-                      <span className="font-mono text-mut w-12 text-right">{it.qty} ×</span>
-                      <span className="font-mono w-16 text-right">{fmtEUR(it.qty * it.price)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <Field label="Nota"><input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Añade un recordatorio…" /></Field>
-
-            <div className="flex items-center gap-2 pt-1">
-              <Button variant="danger" size="sm" onClick={() => { onDelete(ticket); onClose(); }}><Trash2 size={14} /> Eliminar</Button>
-              <Button variant="outline" size="sm" onClick={() => onDuplicate(ticket)}><Copy size={14} /> Duplicar</Button>
-              <div className="ml-auto flex gap-2">
-                <Button variant="ghost" onClick={onClose}>Cerrar</Button>
-                <Button
-                  disabled={!dirty}
-                  onClick={() => {
-                    const t = parseFloat(total.replace(/\./g, "").replace(",", "."));
-                    if (!Number.isFinite(t) || t <= 0) return;
-                    updateTicket({ ...ticket, store: store.trim() || ticket.store, date, total: Math.round(t * 100) / 100, category, note: note.trim() || undefined });
-                    toast("ok", "Cambios guardados.");
-                  }}
-                >
-                  <Save size={14} /> Guardar
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </Modal>
   );
 }

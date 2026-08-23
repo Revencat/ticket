@@ -58,7 +58,7 @@ export function downscaleImage(dataUrl: string, max = 900, quality = 0.78): Prom
 }
 
 /** Convierte cualquier dataURL de imagen a JPEG (necesario para ExcelJS). */
-export const toJpeg = (dataUrl: string) => downscaleImage(dataUrl, 1200, 0.85);
+export const toJpeg = (dataUrl: string, max = 1200, quality = 0.85) => downscaleImage(dataUrl, max, quality);
 
 export const monthKey = (iso: string) => iso.slice(0, 7);
 
