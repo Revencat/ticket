@@ -105,13 +105,17 @@ export function parseReceipt(text: string, stores: StoreEntry[], categories: Cat
     }
   }
 
-  // tienda: match por palabras clave o primera línea con letras
+  // tienda: gana el match por palabra clave más larga en las primeras líneas del ticket
   const lower = lines.map((l) => norm(l));
-  outer: for (const l of lower.slice(0, 8)) {
+  let bestKeyword = 0;
+  for (const l of lower.slice(0, 10)) {
     for (const s of stores) {
-      if (s.keywords.some((k) => l.includes(norm(k)))) {
-        store = s.name;
-        break outer;
+      for (const k of s.keywords) {
+        const nk = norm(k);
+        if (nk.length >= 2 && nk.length > bestKeyword && l.includes(nk)) {
+          bestKeyword = nk.length;
+          store = s.name;
+        }
       }
     }
   }

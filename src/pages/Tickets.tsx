@@ -11,7 +11,7 @@ import { Button, Chip, CatIcon, Modal, EmptyState, IconBtn, inputCls, Field } fr
 type SortKey = "date-desc" | "date-asc" | "total-desc";
 
 export default function Tickets() {
-  const { tickets, categories, stores, deleteTicket, restoreTicket, updateTicket, addTicket, toast } = useApp();
+  const { tickets, categories, allStores, deleteTicket, restoreTicket, updateTicket, addTicket, toast } = useApp();
   const [query, setQuery] = useState("");
   const [catFilter, setCatFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("date-desc");
@@ -29,7 +29,7 @@ export default function Tickets() {
     };
   }, []);
 
-  const nl = useMemo(() => parseQuery(query, categories, stores), [query, categories, stores]);
+  const nl = useMemo(() => parseQuery(query, categories, allStores), [query, categories, allStores]);
 
   // tickets que cumplen la búsqueda natural (antes del filtro de categoría)
   const nlFiltered = useMemo(

@@ -4,6 +4,8 @@ import { DEFAULT_CATEGORIES, DEFAULT_STORES } from "../types";
 import { idbAll, idbBulk, idbClear, idbDel, idbPut } from "./idb";
 import { buildDemoTickets } from "./demo";
 import { provisionAccount, startSync, type StoredAccount, type SyncHandle, type SyncStatus, type Tombstone } from "./sync";
+import { SPAIN_STORES } from "./storesDb";
+import { norm } from "./util";
 
 export const THEMES = [
   { id: "bosque", name: "Bosque", color: "#0f9d63" },
@@ -52,6 +54,7 @@ interface AppCtx {
   tickets: Ticket[];
   categories: Category[];
   stores: StoreEntry[];
+  allStores: StoreEntry[]; // tiendas del usuario + listado de fábrica (España)
   settings: Settings;
   toasts: ToastMsg[];
   accent: string;
@@ -172,6 +175,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setStoresState(s);
     save(LS.stores, s);
   }, []);
+
+  // tiendas del usuario (editables) + listado de fábrica; las del usuario ganan en caso de empate
+  const allStores = useMemo(() => {
+    const seen = new Set(stores.map((s) => norm(s.name)));
+    return [...stores, ...SPAIN_STORES.filter((s) => !seen.has(norm(s.name)))];
+  }, [stores]);
 
   // ── sincronización ────────────────────────────────────────────────────────
   const pushAnnounce = useCallback(() => {
@@ -364,6 +373,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     tickets,
     categories,
     stores,
+    allStores,
     settings,
     toasts,
     accent,

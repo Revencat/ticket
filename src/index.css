@@ -67,6 +67,13 @@ body {
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
+/* lavado ambiental muy sutil tras la interfaz */
+.bg-wash {
+  background:
+    radial-gradient(1100px 460px at 50% -140px, var(--accent-soft), transparent 72%),
+    var(--bg);
+}
+
 /* área segura iOS para la dock */
 .dock-safe {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);

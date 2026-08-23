@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Receipt, ScanLine, ShieldCheck, FileSpreadsheet, Cloud, Settings as SettingsIcon,
-  Sun, Moon, Search, Keyboard, Sparkles, Command, type LucideIcon, WifiOff,
+  Sun, Moon, Search, Keyboard, Sparkles, Command, type LucideIcon, WifiOff, QrCode, Download, Smartphone,
 } from "lucide-react";
 import { useApp } from "../lib/store";
 import { cls, norm, timeAgo } from "../lib/util";
@@ -41,6 +41,47 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [palette, setPalette] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
   const [installEvt, setInstallEvt] = useState<BIPEvent | null>(null);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrData, setQrData] = useState("");
+  const [qrBusy, setQrBusy] = useState(false);
+
+  // QR con la URL de la app para abrir/instalar desde el móvil
+  useEffect(() => {
+    if (!qrOpen) return;
+    let alive = true;
+    setQrData("");
+    setQrBusy(true);
+    const url = window.location.origin + window.location.pathname;
+    import("qrcode")
+      .then((QR) =>
+        QR.toDataURL(url, {
+          width: 560,
+          margin: 1,
+          errorCorrectionLevel: "M",
+          color: { dark: "#14171a", light: "#ffffff" },
+        })
+      )
+      .then((d) => {
+        if (alive) setQrData(d);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setQrBusy(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [qrOpen]);
+
+  const runInstall = async () => {
+    if (!installEvt) return;
+    try {
+      await installEvt.prompt();
+      const r = await installEvt.userChoice;
+      if (r.outcome === "accepted") toast("ok", "TicketBox instalada como app.");
+    } catch {}
+    setInstallEvt(null);
+  };
 
   const warrantyAlerts = useMemo(() => {
     const now = Date.now();
@@ -129,7 +170,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const onScan = loc.pathname === "/scan";
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden bg-wash">
       {/* ── Cabecera ─────────────────────────────────────────────────────── */}
       <header className="h-14 shrink-0 flex items-center gap-3 px-4 sm:px-6 border-b border-line bg-card/85 backdrop-blur z-30">
         <NavLink to="/" className="flex items-center gap-2.5 cursor-pointer">
@@ -193,6 +234,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           >
             <Keyboard size={17} />
           </button>
+          <motion.button
+            whileTap={{ scale: 0.85 }}
+            transition={{ type: "spring", stiffness: 400, damping: 22 }}
+            onClick={() => setQrOpen(true)}
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-mut hover:text-acc hover:bg-acc/10 transition-colors cursor-pointer"
+            title="Instalar en el móvil (código QR)"
+            aria-label="Instalar en el móvil con código QR"
+          >
+            <QrCode size={17} />
+          </motion.button>
+          {installEvt && (
+            <motion.button
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              whileTap={{ scale: 0.85 }}
+              transition={{ type: "spring", stiffness: 400, damping: 20 }}
+              onClick={runInstall}
+              className="w-9 h-9 rounded-lg flex items-center justify-center text-acc bg-acc/10 hover:bg-acc/18 transition-colors cursor-pointer"
+              title="Instalar aplicación"
+              aria-label="Instalar aplicación"
+            >
+              <Download size={17} />
+            </motion.button>
+          )}
           <motion.button
             whileTap={{ rotate: 40, scale: 0.9 }}
             transition={{ type: "spring", stiffness: 300, damping: 15 }}
@@ -290,33 +355,60 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </Modal>
 
-      {installEvt && (
-        <motion.button
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          onClick={async () => {
-            await installEvt.prompt();
-            const r = await installEvt.userChoice;
-            if (r.outcome === "accepted") toast("ok", "TicketBox instalada como app.");
-            setInstallEvt(null);
-          }}
-          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 inline-flex items-center gap-2 h-9 px-4 rounded-full bg-ink text-paper text-[12.5px] font-medium shadow-lg hover:opacity-90 transition-opacity cursor-pointer"
-        >
-          <DownloadMini /> Instalar app
-        </motion.button>
-      )}
+      {/* modal QR de instalación */}
+      <Modal open={qrOpen} onClose={() => setQrOpen(false)}>
+        <div className="p-6">
+          <div className="flex items-center gap-2.5 mb-1">
+            <span className="w-9 h-9 rounded-lg bg-acc/10 text-acc flex items-center justify-center">
+              <Smartphone size={17} />
+            </span>
+            <div>
+              <h2 className="font-display font-bold text-lg leading-tight">Instala TicketBox en tu móvil</h2>
+              <p className="text-mut text-[12.5px]">Escanea el código con la cámara del teléfono</p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-col items-center">
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 320, damping: 24 }}
+              className="relative rounded-xl border border-line bg-white p-3 shadow-sm"
+            >
+              {qrBusy || !qrData ? (
+                <div className="w-[220px] h-[220px] flex items-center justify-center">
+                  <span className="w-6 h-6 rounded-md bg-acc/25 pulse-soft" />
+                </div>
+              ) : (
+                <img src={qrData} alt="Código QR para abrir TicketBox en el móvil" className="w-[220px] h-[220px]" />
+              )}
+              <span className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-ok border-2 border-card" title="Válido mientras la app esté en esta dirección" />
+            </motion.div>
+            <p className="mt-3 font-mono text-[11.5px] text-mut max-w-full truncate px-2" title={window.location.origin + window.location.pathname}>
+              {window.location.origin + window.location.pathname}
+            </p>
+          </div>
+
+          <div className="mt-5 grid sm:grid-cols-2 gap-2.5 text-[12.5px]">
+            <div className="border border-line rounded-lg p-3.5 bg-card2/50">
+              <p className="font-medium text-[13px]">Android</p>
+              <p className="text-mut mt-1 leading-relaxed">Escanea el QR, abre el enlace y el navegador te propondrá «Añadir a pantalla de inicio».</p>
+            </div>
+            <div className="border border-line rounded-lg p-3.5 bg-card2/50">
+              <p className="font-medium text-[13px]">iPhone</p>
+              <p className="text-mut mt-1 leading-relaxed">Abre el enlace en Safari, pulsa Compartir y elige «Añadir a pantalla de inicio».</p>
+            </div>
+          </div>
+
+          <p className="mt-4 text-[12px] text-mut leading-relaxed">
+            Al instalarla, TicketBox se abre a pantalla completa y funciona sin conexión. Después, entra con tu cuenta desde
+            la pestaña <strong className="text-ink">Cuenta</strong> para sincronizar los tickets con este equipo.
+          </p>
+        </div>
+      </Modal>
 
       <ToastHost toasts={toasts} dismiss={dismissToast} />
     </div>
-  );
-}
-
-function DownloadMini() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
-      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-    </svg>
   );
 }
 

@@ -13,7 +13,7 @@ type Phase = "input" | "camera" | "processing" | "review" | "error";
 interface ReviewItem extends LineItem {}
 
 export default function Scan() {
-  const { stores, categories, addTicket, toast } = useApp();
+  const { allStores, categories, addTicket, toast } = useApp();
   const nav = useNavigate();
   const [phase, setPhase] = useState<Phase>("input");
   const [progress, setProgress] = useState<OcrProgress>({ phase: "Preparando…", pct: null });
@@ -79,7 +79,7 @@ export default function Scan() {
     setProgress({ phase: "Cargando motor OCR", pct: null });
     try {
       const text = await runOcr(dataUrl, setProgress);
-      loadDraft({ ...parseReceipt(text, stores, categories), photo: dataUrl });
+      loadDraft({ ...parseReceipt(text, allStores, categories), photo: dataUrl });
       toast("ok", "Texto leído. Revisa los datos detectados.");
     } catch {
       setErrMsg("El OCR no pudo procesar la imagen (¿sin conexión? El motor descarga el idioma la primera vez). Puedes crear el ticket manualmente.");
@@ -288,7 +288,7 @@ export default function Scan() {
               <div className="grid sm:grid-cols-2 gap-4">
                 <Field label="Tienda">
                   <input className={inputCls} list="tb-stores" value={store} onChange={(e) => setStore(e.target.value)} placeholder="Mercadona, Zara…" />
-                  <datalist id="tb-stores">{stores.map((s) => <option key={s.name} value={s.name} />)}</datalist>
+                  <datalist id="tb-stores">{allStores.map((s) => <option key={s.name} value={s.name} />)}</datalist>
                 </Field>
                 <Field label="Fecha">
                   <input type="date" className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} />
