@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useApp } from "../lib/store";
 import { cls, norm, timeAgo } from "../lib/util";
+import { setPending } from "../lib/pending";
 import { Logo, ToastHost, Kbd, Modal } from "./ui";
 
 interface BIPEvent extends Event {
@@ -590,8 +591,8 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
       label: `Ver tickets de ${c.name}`,
       icon: Receipt,
       run: () => {
+        setPending({ cat: c.id });
         nav("/tickets");
-        window.setTimeout(() => window.dispatchEvent(new CustomEvent("tb:filter-cat", { detail: c.id })), 90);
       },
     }));
     return [...base, ...cats];

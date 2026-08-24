@@ -13,6 +13,7 @@ import { fmtEUR, relDate, monthKey, cls } from "../lib/util";
 import type { Ticket } from "../types";
 import { CatIcon, EmptyState, Button, CountUp, Dot } from "../components/ui";
 import TicketDetail from "../components/TicketDetail";
+import { setPending } from "../lib/pending";
 
 interface MonthRow {
   key: string;
@@ -95,12 +96,14 @@ export default function Dashboard() {
   const budgetPct = budget ? (stats.cur.total / budget) * 100 : 0;
 
   const openCat = (id: string) => {
+    setPending({ cat: id });
     nav("/tickets");
-    window.setTimeout(() => window.dispatchEvent(new CustomEvent("tb:filter-cat", { detail: id })), 120);
   };
   const openStore = (name: string) => {
+    // al llegar a Tickets, la lista ya viene filtrada para mostrar
+    // únicamente los tickets de esa tienda
+    setPending({ store: name });
     nav("/tickets");
-    window.setTimeout(() => window.dispatchEvent(new CustomEvent("tb:set-query", { detail: name })), 120);
   };
 
   if (tickets.length === 0) {
