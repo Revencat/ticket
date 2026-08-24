@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Upload, Sparkles, ArrowLeft, Trash2, Plus, Save, RefreshCw, AlertTriangle, Loader2, ScanLine, FileQuestion, ShieldCheck } from "lucide-react";
 import { useApp } from "../lib/store";
 import { runOcr, parseReceipt, simulateScan, type OcrProgress, type ScanDraft } from "../lib/ocr";
+import { setPending } from "../lib/pending";
 import { downscaleImage, fmtEUR, todayISO, uid, cls } from "../lib/util";
 import type { LineItem, Ticket } from "../types";
 import { Button, Field, inputCls } from "../components/ui";
@@ -149,8 +150,8 @@ export default function Scan() {
       toast("ok", `Ticket de ${fmtEUR(ticket.total)} archivado en ${categories.find((c) => c.id === category)?.name || "Otros"}.`, {
         label: "Ver ticket",
         run: () => {
+          setPending({ ticket: ticket.id });
           nav("/tickets");
-          window.setTimeout(() => window.dispatchEvent(new CustomEvent("tb:open-ticket", { detail: ticket.id })), 180);
         },
       });
       nav("/tickets");

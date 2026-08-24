@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Search, Receipt as ReceiptIcon, ScanLine, X, Image as ImageIcon, ShieldCheck, CalendarDays } from "lucide-react";
+import { Search, Receipt as ReceiptIcon, ScanLine, X, Image as ImageIcon, ShieldCheck, CalendarDays, Store as StoreIcon } from "lucide-react";
 import { useApp } from "../lib/store";
 import { parseQuery } from "../lib/nl";
+import { takePending } from "../lib/pending";
 import { fmtEUR, fmtMonth, monthKey, cls, relDate } from "../lib/util";
 import type { Ticket } from "../types";
 import { Button, Chip, CatIcon, EmptyState, inputCls } from "../components/ui";
@@ -15,6 +16,7 @@ export default function Tickets() {
   const { tickets, categories, allStores } = useApp();
   const [query, setQuery] = useState("");
   const [catFilter, setCatFilter] = useState<string | null>(null);
+  const [storeFilter, setStoreFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("date-desc");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -28,6 +30,17 @@ export default function Tickets() {
     window.addEventListener("tb:filter-cat", filterCat);
     window.addEventListener("tb:set-query", setQueryEvt);
     window.addEventListener("tb:open-ticket", openTicket);
+
+    // Comandos pendientes de navegación (p. ej. venir del «Top tiendas» con
+    // una tienda ya filtrada): se aplican al montar, sin carreras de tiempos.
+    const pending = takePending();
+    if (pending) {
+      if (pending.query !== undefined) setQuery(pending.query);
+      if (pending.cat !== undefined) setCatFilter(pending.cat);
+      if (pending.ticket !== undefined) setSelectedId(pending.ticket);
+      if (pending.store !== undefined) setStoreFilter(pending.store);
+    }
+
     return () => {
       window.removeEventListener("tb:focus-search", focus);
       window.removeEventListener("tb:filter-cat", filterCat);
@@ -57,21 +70,28 @@ export default function Tickets() {
     [tickets, nl]
   );
 
+  // si viene un filtro de tienda concreto (p. ej. desde «Top tiendas»),
+  // se aplica sobre la búsqueda y solo se muestran los tickets de esa tienda
+  const base = useMemo(
+    () => (storeFilter ? nlFiltered.filter((t) => t.store.toLowerCase() === storeFilter.toLowerCase()) : nlFiltered),
+    [nlFiltered, storeFilter]
+  );
+
   const catCounts = useMemo(() => {
     const m = new Map<string, number>();
-    for (const t of nlFiltered) m.set(t.category, (m.get(t.category) || 0) + 1);
+    for (const t of base) m.set(t.category, (m.get(t.category) || 0) + 1);
     return m;
-  }, [nlFiltered]);
+  }, [base]);
 
   const filtered = useMemo(() => {
-    let xs = catFilter ? nlFiltered.filter((t) => t.category === catFilter) : nlFiltered;
+    let xs = catFilter ? base.filter((t) => t.category === catFilter) : base;
     xs = [...xs].sort((a, b) => {
       if (sort === "total-desc") return b.total - a.total;
       if (sort === "date-asc") return a.date.localeCompare(b.date);
       return b.date.localeCompare(a.date);
     });
     return xs;
-  }, [nlFiltered, catFilter, sort]);
+  }, [base, catFilter, sort]);
 
   const groups = useMemo(() => {
     const m = new Map<string, Ticket[]>();
@@ -130,8 +150,13 @@ export default function Tickets() {
           ))}
         </div>
 
-        {(nl.chips.length > 0 || catFilter) && (
+        {(nl.chips.length > 0 || catFilter || storeFilter) && (
           <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-line pt-2.5">
+            {storeFilter && (
+              <Chip color="var(--accent)" onRemove={() => setStoreFilter(null)}>
+                <StoreIcon size={12} /> Solo {storeFilter}
+              </Chip>
+            )}
             {nl.chips.map((c) => (
               <Chip key={c} color="var(--accent)" onRemove={() => setQuery("")}>{c}</Chip>
             ))}
@@ -155,7 +180,7 @@ export default function Tickets() {
           icon={<Search size={24} />}
           title="Nada coincide con tu búsqueda"
           desc="Prueba a quitar algún filtro o reformula la consulta: entiende tiendas, importes, fechas y categorías."
-          action={<Button variant="outline" onClick={() => { setQuery(""); setCatFilter(null); }}><X size={15} /> Limpiar filtros</Button>}
+          action={<Button variant="outline" onClick={() => { setQuery(""); setCatFilter(null); setStoreFilter(null); }}><X size={15} /> Limpiar filtros</Button>}
         />
       ) : (
         groups.map(([month, list]) => (
