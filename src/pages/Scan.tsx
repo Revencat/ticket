@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Upload, Sparkles, ArrowLeft, Trash2, Plus, Save, RefreshCw, AlertTriangle, Loader2, ScanLine, FileQuestion, ShieldCheck } from "lucide-react";
+import { Camera, Upload, Sparkles, ArrowLeft, Trash2, Plus, Save, RefreshCw, AlertTriangle, Loader2, ScanLine, FileQuestion, ShieldCheck, FileText, Gauge } from "lucide-react";
 import { useApp } from "../lib/store";
 import { runOcr, parseReceipt, simulateScan, type OcrProgress, type ScanDraft } from "../lib/ocr";
 import { setPending } from "../lib/pending";
@@ -30,6 +30,9 @@ export default function Scan() {
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [rawText, setRawText] = useState("");
+  const [confidence, setConfidence] = useState<number | null>(null);
+  const [showRaw, setShowRaw] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -70,6 +73,9 @@ export default function Scan() {
     setNote("");
     setItems(d.items.map((i) => ({ id: uid(), name: i.name, qty: i.qty, price: i.price, warrantyMonths: i.warrantyMonths })));
     setPhoto(d.photo);
+    setRawText(d.raw || "");
+    setConfidence(d.confidence ?? null);
+    setShowRaw(false);
     setFormError("");
     setPhase("review");
   };
@@ -79,9 +85,9 @@ export default function Scan() {
     setPhase("processing");
     setProgress({ phase: "Cargando motor OCR", pct: null });
     try {
-      const text = await runOcr(dataUrl, setProgress);
-      loadDraft({ ...parseReceipt(text, allStores, categories), photo: dataUrl });
-      toast("ok", "Texto leído. Revisa los datos detectados.");
+      const { text, confidence: conf } = await runOcr(dataUrl, setProgress);
+      loadDraft({ ...parseReceipt(text, allStores, categories), photo: dataUrl, raw: text, confidence: conf });
+      toast("ok", conf >= 70 ? "Texto leído con buena nitidez. Revisa los datos." : "Texto leído, pero con nitidez media: revisa con atención los datos.");
     } catch {
       setErrMsg("El OCR no pudo procesar la imagen (¿sin conexión? El motor descarga el idioma la primera vez). Puedes crear el ticket manualmente.");
       setPhase("error");
@@ -293,13 +299,41 @@ export default function Scan() {
         {/* ── REVISIÓN ────────────────────────────────────────── */}
         {phase === "review" && (
           <motion.div key="review" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="grid lg:grid-cols-5 gap-4 items-start">
-            <div className="lg:col-span-2 print-in bg-card border border-line rounded-xl p-4">
-              <p className="text-[13px] font-medium text-mut mb-3">Foto del ticket</p>
+            <div className="lg:col-span-2 print-in bg-card border border-line rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[13px] font-medium text-mut">Foto del ticket</p>
+                {confidence !== null && (
+                  <span
+                    className={cls(
+                      "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-semibold border",
+                      confidence >= 80 ? "text-ok border-ok/25 bg-ok/8" : confidence >= 60 ? "text-warn border-warn/25 bg-warn/8" : "text-danger border-danger/25 bg-danger/8"
+                    )}
+                    title="Nitidez estimada de la lectura OCR"
+                  >
+                    <Gauge size={12} /> Nitidez {confidence}%
+                  </span>
+                )}
+              </div>
               {photo ? (
-                <img src={photo} alt="Foto del ticket" className="w-full max-h-[380px] object-contain rounded-lg border border-line bg-white" />
+                <img src={photo} alt="Foto del ticket" className="w-full max-h-[340px] object-contain rounded-lg border border-line bg-white" />
               ) : (
                 <div className="h-40 rounded-lg border border-dashed border-line2 flex flex-col items-center justify-center gap-2 text-mut text-sm">
                   <AlertTriangle size={20} /> Sin foto adjunta
+                </div>
+              )}
+              {rawText && rawText !== "— simulación de OCR —" && (
+                <div>
+                  <button
+                    onClick={() => setShowRaw((v) => !v)}
+                    className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-acc hover:underline cursor-pointer"
+                  >
+                    <FileText size={13} /> {showRaw ? "Ocultar texto leído" : "Ver texto leído por el OCR"}
+                  </button>
+                  {showRaw && (
+                    <pre className="mt-2 text-[11px] leading-relaxed font-mono whitespace-pre-wrap max-h-[200px] overflow-y-auto rounded-lg border border-line bg-card2/70 p-3 text-mut">
+                      {rawText}
+                    </pre>
+                  )}
                 </div>
               )}
             </div>
