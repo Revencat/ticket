@@ -8,9 +8,8 @@ import { setPending } from "../lib/pending";
 import { downscaleImage, fmtEUR, todayISO, uid, cls } from "../lib/util";
 import type { LineItem, Ticket } from "../types";
 import { Button, Field, inputCls } from "../components/ui";
-import CropReview from "../components/CropReview";
 
-type Phase = "input" | "camera" | "crop" | "processing" | "review" | "error";
+type Phase = "input" | "camera" | "processing" | "review" | "error";
 
 interface ReviewItem extends LineItem {}
 
@@ -19,7 +18,6 @@ export default function Scan() {
   const nav = useNavigate();
   const [phase, setPhase] = useState<Phase>("input");
   const [progress, setProgress] = useState<OcrProgress>({ phase: "Preparando…", pct: null });
-  const [rawPhoto, setRawPhoto] = useState<string>(""); // foto tal cual se capturó, antes de recortar
   const [photo, setPhoto] = useState<string>("");
   const [errMsg, setErrMsg] = useState("");
   const [dragOver, setDragOver] = useState(false);
@@ -102,8 +100,7 @@ export default function Scan() {
       r.readAsDataURL(f);
     });
     const small = await downscaleImage(url, 1400, 0.85);
-    setRawPhoto(small);
-    setPhase("crop");
+    await startOcr(small);
   };
 
   const capture = () => {
@@ -114,8 +111,7 @@ export default function Scan() {
     c.width = v.videoWidth * scale;
     c.height = v.videoHeight * scale;
     c.getContext("2d")!.drawImage(v, 0, 0, c.width, c.height);
-    setRawPhoto(c.toDataURL("image/jpeg", 0.85));
-    setPhase("crop");
+    startOcr(c.toDataURL("image/jpeg", 0.85));
   };
 
   const runSimulation = async () => {
@@ -244,16 +240,6 @@ export default function Scan() {
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
             </div>
           </motion.div>
-        )}
-
-        {/* ── RECORTE ─────────────────────────────────────────── */}
-        {phase === "crop" && (
-          <CropReview
-            key="crop"
-            photo={rawPhoto}
-            onRetake={() => setPhase("input")}
-            onConfirm={(cropped) => startOcr(cropped)}
-          />
         )}
 
         {/* ── PROCESANDO ──────────────────────────────────────── */}
