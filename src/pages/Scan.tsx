@@ -1,15 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Upload, Sparkles, ArrowLeft, Trash2, Plus, Save, RefreshCw, AlertTriangle, Loader2, ScanLine, FileQuestion, ShieldCheck, FileText, Gauge } from "lucide-react";
+import { Camera, Upload, Sparkles, ArrowLeft, Trash2, Plus, Save, RefreshCw, AlertTriangle, Loader2, ScanLine, FileQuestion, ShieldCheck, FileText, Gauge, Flashlight, FlashlightOff, Scissors, Check } from "lucide-react";
 import { useApp } from "../lib/store";
 import { runOcr, parseReceipt, simulateScan, type OcrProgress, type ScanDraft } from "../lib/ocr";
 import { setPending } from "../lib/pending";
+import { detectReceipt } from "../lib/crop";
 import { downscaleImage, fmtEUR, todayISO, uid, cls } from "../lib/util";
 import type { LineItem, Ticket } from "../types";
 import { Button, Field, inputCls } from "../components/ui";
 
-type Phase = "input" | "camera" | "processing" | "review" | "error";
+type Phase = "input" | "camera" | "processing" | "review" | "error" | "choose-crop";
 
 interface ReviewItem extends LineItem {}
 
@@ -21,6 +22,10 @@ export default function Scan() {
   const [photo, setPhoto] = useState<string>("");
   const [errMsg, setErrMsg] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [torch, setTorch] = useState(false);
+  const [hasTorch, setHasTorch] = useState(false);
+  const [cropDataUrl, setCropDataUrl] = useState<string>("");
+  const [originalForCrop, setOriginalForCrop] = useState<string>("");
 
   const [store, setStore] = useState("");
   const [date, setDate] = useState(todayISO());
@@ -43,12 +48,23 @@ export default function Scan() {
     let cancelled = false;
     (async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "environment",
+            width: { ideal: 4096 },
+            height: { ideal: 4096 },
+          },
+          audio: false,
+        });
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
         streamRef.current = stream;
+        // ¿el dispositivo tiene linterna (torch)?
+        const track = stream.getVideoTracks()[0];
+        const caps = (track?.getCapabilities?.() ?? {}) as { torch?: boolean };
+        setHasTorch(!!caps.torch);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play().catch(() => {});
@@ -133,6 +149,49 @@ export default function Scan() {
     }
   };
 
+  /**
+   * Tras capturar o subir una foto, intenta detectar los bordes del ticket.
+   * Si los encuentra, pregunta si recortar; si no, pasa directo al OCR.
+   */
+  const preparePhoto = async (dataUrl: string) => {
+    setOriginalForCrop(dataUrl);
+    setPhase("processing");
+    setProgress({ phase: "Buscando los bordes del ticket…", pct: null });
+    try {
+      const crop = await detectReceipt(dataUrl);
+      if (crop) {
+        setCropDataUrl(crop.dataUrl);
+        setPhase("choose-crop");
+        return;
+      }
+    } catch {
+      /* sin recorte: seguimos con la original */
+    }
+    setCropDataUrl("");
+    await startOcr(dataUrl);
+  };
+
+  const choosePhoto = (kind: "crop" | "original") => {
+    const src = kind === "crop" ? cropDataUrl : originalForCrop;
+    setCropDataUrl("");
+    setOriginalForCrop("");
+    startOcr(src);
+  };
+
+  const toggleTorch = async () => {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    const next = !torch;
+    try {
+      await (track.applyConstraints as (c: unknown) => Promise<void>)(
+        { advanced: [{ torch: next } as unknown as MediaTrackConstraintSet] } as MediaTrackConstraints
+      );
+      setTorch(next);
+    } catch {
+      toast("warn", "Este dispositivo no permite encender la linterna.");
+    }
+  };
+
   const onFile = async (f: File) => {
     if (!f.type.startsWith("image/")) {
       toast("warn", "El archivo debe ser una imagen (JPG o PNG).");
@@ -144,19 +203,43 @@ export default function Scan() {
       r.onerror = rej;
       r.readAsDataURL(f);
     });
-    const small = await downscaleImage(url, 1400, 0.85);
-    await startOcr(small);
+    await preparePhoto(url);
   };
 
-  const capture = () => {
+  const capture = async () => {
     const v = videoRef.current;
+    const track = streamRef.current?.getVideoTracks()[0];
     if (!v || !v.videoWidth) return;
-    const c = document.createElement("canvas");
-    const scale = Math.min(1, 1400 / v.videoWidth);
-    c.width = v.videoWidth * scale;
-    c.height = v.videoHeight * scale;
-    c.getContext("2d")!.drawImage(v, 0, 0, c.width, c.height);
-    startOcr(c.toDataURL("image/jpeg", 0.85));
+
+    let dataUrl = "";
+    // ImageCapture saca la foto a la resolución real del sensor (mucha más
+    // calidad que dibujar el vídeo). Si no existe, usamos el fotograma.
+    try {
+      const IC = (window as unknown as { ImageCapture?: new (t: MediaStreamTrack) => { takePhoto: () => Promise<Blob> } }).ImageCapture;
+      if (IC && track) {
+        const blob = await new IC(track).takePhoto();
+        dataUrl = await new Promise<string>((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(String(r.result));
+          r.onerror = rej;
+          r.readAsDataURL(blob);
+        });
+      }
+    } catch {
+      dataUrl = "";
+    }
+
+    if (!dataUrl) {
+      const c = document.createElement("canvas");
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
+      c.getContext("2d")!.drawImage(v, 0, 0);
+      dataUrl = c.toDataURL("image/jpeg", 0.92);
+    }
+
+    // Limita el lado mayor a 2200 px para no guardar fotos enormes, sin perder nitidez.
+    const capped = await downscaleImage(dataUrl, 2200, 0.92);
+    await preparePhoto(capped);
   };
 
   const runSimulation = async () => {
@@ -267,23 +350,122 @@ export default function Scan() {
 
         {/* ── CÁMARA ──────────────────────────────────────────── */}
         {phase === "camera" && (
-          <motion.div key="camera" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="bg-card border border-line rounded-xl overflow-hidden">
-            <div className="relative bg-black aspect-[4/3] max-h-[56vh]">
-              <video ref={videoRef} playsInline muted className="w-full h-full object-contain" />
-              <div className="absolute inset-6 border-2 border-dashed border-white/40 rounded-lg pointer-events-none" />
+          <motion.div
+            key="camera"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black flex flex-col"
+          >
+            {/* barra superior */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-2 bg-gradient-to-b from-black/70 to-transparent">
+              <button
+                onClick={() => setPhase("input")}
+                className="w-10 h-10 rounded-full bg-white/12 text-white flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer"
+                aria-label="Volver"
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <p className="text-white/85 text-[13px] font-medium">Apunta al ticket entero</p>
+              {hasTorch ? (
+                <button
+                  onClick={toggleTorch}
+                  className={cls(
+                    "w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer",
+                    torch ? "bg-acc text-accink" : "bg-white/12 text-white hover:bg-white/20"
+                  )}
+                  aria-label="Linterna"
+                >
+                  {torch ? <FlashlightOff size={19} /> : <Flashlight size={19} />}
+                </button>
+              ) : (
+                <span className="w-10" />
+              )}
             </div>
-            <div className="flex items-center justify-between p-4">
-              <Button variant="ghost" onClick={() => setPhase("input")}><ArrowLeft size={16} /> Volver</Button>
+
+            {/* visor a pantalla completa */}
+            <div className="relative flex-1 overflow-hidden">
+              <video ref={videoRef} playsInline muted className="absolute inset-0 w-full h-full object-cover" />
+
+              {/* guía con forma de ticket + esquinas */}
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <div className="relative w-[62%] max-w-[320px] aspect-[3/4.4]">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <rect x="0.5" y="0.5" width="99" height="99" rx="3" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />
+                    {[
+                      "M2 12 V4 Q2 2 4 2 H12",
+                      "M88 2 H96 Q98 2 98 4 V12",
+                      "M98 88 V96 Q98 98 96 98 H88",
+                      "M12 98 H4 Q2 98 2 96 V88",
+                    ].map((d) => (
+                      <path key={d} d={d} fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                    ))}
+                  </svg>
+                  <div className="scanline absolute left-1 right-1 h-[3px] rounded-full bg-acc/80 shadow-[0_0_12px_var(--accent)]" />
+                </div>
+              </div>
+              <p className="absolute bottom-3 inset-x-0 text-center text-white/70 text-[12px]">
+                Buena luz y el ticket sobre un fondo oscuro ayudan al recorte automático
+              </p>
+            </div>
+
+            {/* controles inferiores */}
+            <div className="flex items-center justify-center gap-10 px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black/70 to-transparent">
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="w-12 h-12 rounded-full bg-white/12 text-white flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer"
+                aria-label="Subir foto"
+                title="Subir una foto"
+              >
+                <Upload size={20} />
+              </button>
               <motion.button
-                whileTap={{ scale: 0.85 }}
+                whileTap={{ scale: 0.82 }}
                 transition={{ type: "spring", stiffness: 500, damping: 22 }}
                 onClick={capture}
-                className="w-16 h-16 rounded-full bg-acc border-4 border-card shadow-lg hover:brightness-110 cursor-pointer"
+                className="w-[72px] h-[72px] rounded-full border-4 border-white/90 flex items-center justify-center cursor-pointer"
+                aria-label="Capturar ticket"
                 title="Capturar"
-              />
-              <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload size={15} /> Subir foto</Button>
+              >
+                <span className="w-[56px] h-[56px] rounded-full bg-acc group-active:bg-acc transition-colors" />
+              </motion.button>
+              <span className="w-12" />
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
             </div>
+          </motion.div>
+        )}
+
+        {/* ── ¿RECORTAR EL TICKET? ────────────────────────────── */}
+        {phase === "choose-crop" && (
+          <motion.div key="choose-crop" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="bg-card border border-line rounded-xl p-5">
+            <div className="flex items-center gap-2.5 mb-1">
+              <span className="w-9 h-9 rounded-lg bg-acc/10 text-acc flex items-center justify-center"><Scissors size={17} /></span>
+              <div>
+                <h2 className="font-display font-bold text-lg leading-tight">Detecté los bordes del ticket</h2>
+                <p className="text-mut text-[12.5px]">¿Quieres recortarlo para dejar solo el papel?</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <button
+                onClick={() => choosePhoto("crop")}
+                className="group rounded-xl border-2 border-acc/60 bg-card2/50 p-2.5 hover:border-acc hover:bg-acc/6 transition-all cursor-pointer text-left"
+              >
+                <img src={cropDataUrl} alt="Ticket recortado" className="w-full max-h-[280px] object-contain rounded-lg bg-white" />
+                <p className="flex items-center gap-1.5 mt-2 px-1 text-[13px] font-semibold text-acc"><Check size={15} /> Usar recortada</p>
+              </button>
+              <button
+                onClick={() => choosePhoto("original")}
+                className="group rounded-xl border-2 border-line bg-card2/50 p-2.5 hover:border-line2 transition-all cursor-pointer text-left"
+              >
+                <img src={originalForCrop} alt="Foto original" className="w-full max-h-[280px] object-contain rounded-lg bg-white" />
+                <p className="flex items-center gap-1.5 mt-2 px-1 text-[13px] font-medium text-mut">Mantener original</p>
+              </button>
+            </div>
+
+            <p className="text-[12px] text-mut mt-3 leading-relaxed">
+              El recorte suele mejorar la lectura del OCR. La foto original no se modifica: solo cambia la que se analiza y se archiva.
+            </p>
           </motion.div>
         )}
 

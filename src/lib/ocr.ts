@@ -102,21 +102,55 @@ function lev(a: string, b: string): number {
   return prev[n];
 }
 
+/**
+ * Corrección de dígitos confundidos por el OCR dentro de un importe.
+ * Solo se aplica a tokens que YA parecen numéricos (empiezan por dígito).
+ */
+const CONFUSE: Record<string, string> = {
+  O: "0", o: "0", Q: "0", q: "0", D: "0",
+  S: "5", s: "5", B: "8", b: "8",
+  I: "1", l: "1", "|": "1",
+  Z: "2", z: "2", G: "6", g: "6", T: "7",
+};
+const repairDigits = (s: string) => s.replace(/[OoQqDSsBbIl|ZzGgT]/g, (c) => CONFUSE[c] ?? c);
+
 function parseAmount(s: string): number {
-  let x = s.trim().replace(/[€\s]/g, "");
-  if (/,/.test(x)) {
-    // formato es-ES: 1.234,56 / 23,45 → puntos fuera, coma es decimal
+  let x = repairDigits(s.trim()).replace(/[€$\s]/g, "");
+  if (!/\d/.test(x)) return 0;
+  const hasComma = /,/.test(x);
+  const hasDot = /\./.test(x);
+  if (hasComma && hasDot) {
+    // 1.234,56 → punto miles, coma decimal
     x = x.replace(/\./g, "").replace(",", ".");
-  } else if (/^\d{1,3}(?:\.\d{3})+$/.test(x)) {
-    x = x.replace(/\./g, ""); // miles es-ES sin decimales: 1.234 → 1234
+  } else if (hasComma) {
+    // 23,45 / 23,4 → coma decimal
+    x = x.replace(/,/g, ".");
+  } else if (hasDot) {
+    // 1.234 (miles) vs 23.45 (decimal): 3 dígitos tras el punto y 1-3 antes → miles
+    if (/^\d{1,3}(\.\d{3})+$/.test(x)) x = x.replace(/\./g, "");
+    // si no, se mantiene como decimal (23.45)
   }
   const n = parseFloat(x);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
 }
 
-/** Acepta 1.234,56 · 1234.56 · 23,45 · 23,4 · 1.234 — en ese orden de prioridad. */
-const AMOUNT_RE = /(\d{1,3}(?:\.\d{3})+,\d{2}|\d+\.\d{2}|\d+,\d{1,2}|\d{1,3}(?:\.\d{3})+)/g;
-const amountsIn = (l: string) => [...l.matchAll(AMOUNT_RE)].map((m) => m[1]);
+/**
+ * Extrae todos los importes de una línea, tolerando ruido de OCR
+ * (dígitos confundidos y espacios sueltos: «2 3 , 4 5», «I.234,56»…).
+ */
+function amountsIn(l: string): string[] {
+  const out: string[] = [];
+  const re = /\d[\dOoIlSBbZzgGDd .,]{0,16}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(l))) {
+    let tok = m[0].replace(/[ .,]+$/g, "");
+    if (tok.length < 2) continue;
+    tok = repairDigits(tok);
+    // exige al menos 2 dígitos en total (descarta "2 x", fechas sueltas…)
+    if (tok.replace(/\D/g, "").length >= 2) out.push(tok);
+  }
+  return out;
+}
 
 /** ¿La línea contiene la palabra "total" (tolerando errores típicos de OCR)? */
 function hasTotalWord(l: string): boolean {
@@ -135,7 +169,14 @@ function detectTotal(lines: string[]): number {
     const n = norm(l);
     if (TOTAL_BAD.test(n)) return;
     if (!hasTotalWord(l)) return;
-    const amts = amountsIn(l);
+    let amts = amountsIn(l);
+    // Si la línea de TOTAL no lleva importe, suele ir en la línea siguiente
+    if (!amts.length) {
+      for (let k = i + 1; k < Math.min(i + 3, lines.length); k++) {
+        amts = amountsIn(lines[k]);
+        if (amts.length) break;
+      }
+    }
     if (!amts.length) return;
     const val = parseAmount(amts[amts.length - 1]);
     if (val <= 0) return;
