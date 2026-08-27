@@ -1,23 +1,21 @@
 /**
- * Detección de bordes del ticket + recorte.
+ * Recorte de ticket tipo "modo documento" (como CamScanner / Adobe Scan).
  *
- * Localiza el papel del ticket dentro de la foto y devuelve una versión
- * recortada y enderezada. 100% local (canvas): la foto no sale del dispositivo.
+ * Flujo:
+ *   1. `detectReceiptCorners` localiza automáticamente el ticket en la foto y
+ *      devuelve sus 4 esquinas (en coordenadas de la imagen original). Es solo
+ *      una estimación inicial: el editor interactivo permite moverlas.
+ *   2. El usuario ajusta las esquinas en pantalla (CropEditor).
+ *   3. `warpPerspective` aplica una homografía que endereza el ticket y lo
+ *      recorta como un rectángulo limpio.
  *
- * Pipeline:
- *   1. Miniatura (~560 px) en escala de grises.
- *   2. Desenfoque de caja: funde el texto con el papel, de modo que el ticket
- *      se convierte en una única mancha clara sobre el fondo.
- *   3. Umbral de Otsu + cierre morfológico (une zonas separadas por sombras).
- *   4. Componente conexa más grande = el papel.
- *   5. Contorno → envolvente convexa → rectángulo de área mínima
- *      (calipers giratorios): funciona aunque el ticket esté girado.
- *   6. Recorte por rotación sobre la imagen original, dejando el ticket en
- *      vertical y con un pequeño margen.
- *
- * Devuelve null si no hay un recorte claro (el ticket ya llena el encuadre o
- * el fondo es igual de claro que el papel): en ese caso se usa la foto tal cual.
+ * Todo ocurre en un canvas del navegador; la foto nunca sale del dispositivo.
  */
+
+export interface Pt {
+  x: number;
+  y: number;
+}
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -49,157 +47,100 @@ function otsu(hist: Uint32Array, total: number): number {
   return threshold;
 }
 
-/** Desenfoque de caja separable (horizontal + vertical). */
-function boxBlur(src: Uint8ClampedArray, w: number, h: number, r: number): Uint8Array {
-  const tmp = new Uint8Array(w * h);
-  const out = new Uint8Array(w * h);
-  const win = 2 * r + 1;
+/* ── Detección: esquinas del ticket ─────────────────────────────────────── */
+
+/** Desenfoque 3×3 sobre escala de grises (funde el texto con el papel). */
+function blurGray(gray: Uint8ClampedArray, w: number, h: number): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(w * h);
   for (let y = 0; y < h; y++) {
-    const row = y * w;
-    let sum = 0;
-    for (let x = -r; x <= r; x++) sum += src[row + Math.min(w - 1, Math.max(0, x))];
     for (let x = 0; x < w; x++) {
-      tmp[row + x] = sum / win;
-      sum += src[row + Math.min(w - 1, x + r + 1)] - src[row + Math.max(0, x - r)];
-    }
-  }
-  for (let x = 0; x < w; x++) {
-    let sum = 0;
-    for (let y = -r; y <= r; y++) sum += tmp[Math.min(h - 1, Math.max(0, y)) * w + x];
-    for (let y = 0; y < h; y++) {
-      out[y * w + x] = sum / win;
-      sum += tmp[Math.min(h - 1, y + r + 1) * w + x] - tmp[Math.max(0, y - r) * w + x];
+      let acc = 0, n = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        const yy = y + dy;
+        if (yy < 0 || yy >= h) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx;
+          if (xx < 0 || xx >= w) continue;
+          acc += gray[yy * w + xx];
+          n++;
+        }
+      }
+      out[y * w + x] = acc / n;
     }
   }
   return out;
 }
 
-function dilate(m: Uint8Array, w: number, h: number, r: number): Uint8Array {
-  const tmp = new Uint8Array(w * h);
-  const out = new Uint8Array(w * h);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      let v = 0;
-      for (let dx = -r; dx <= r && !v; dx++) {
-        const nx = x + dx;
-        if (nx >= 0 && nx < w && m[y * w + nx]) v = 1;
-      }
-      tmp[y * w + x] = v;
-    }
-  }
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      let v = 0;
-      for (let dy = -r; dy <= r && !v; dy++) {
-        const ny = y + dy;
-        if (ny >= 0 && ny < h && tmp[ny * w + x]) v = 1;
-      }
-      out[y * w + x] = v;
-    }
-  }
-  return out;
-}
-
-function erode(m: Uint8Array, w: number, h: number, r: number): Uint8Array {
-  const tmp = new Uint8Array(w * h);
-  const out = new Uint8Array(w * h);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      let v = 1;
-      for (let dx = -r; dx <= r && v; dx++) {
-        const nx = x + dx;
-        if (nx < 0 || nx >= w || !m[y * w + nx]) v = 0;
-      }
-      tmp[y * w + x] = v;
-    }
-  }
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      let v = 1;
-      for (let dy = -r; dy <= r && v; dy++) {
-        const ny = y + dy;
-        if (ny < 0 || ny >= h || !tmp[ny * w + x]) v = 0;
-      }
-      out[y * w + x] = v;
-    }
-  }
-  return out;
-}
-
-type Pt = [number, number];
-
-/** Envolvente convexa (monotone chain de Andrew). */
+/** Envolvente convexa (Andrew monotone chain). */
 function convexHull(pts: Pt[]): Pt[] {
-  const p = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  if (p.length < 3) return p;
-  const cross = (o: Pt, a: Pt, b: Pt) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-  const lower: Pt[] = [];
+  const p = [...pts].sort((a, b) => (a.x === b.x ? a.y - b.y : a.x - b.x));
+  const n = p.length;
+  if (n < 3) return p;
+  const cross = (o: Pt, a: Pt, b: Pt) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const hull: Pt[] = [];
   for (const pt of p) {
-    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pt) <= 0) lower.pop();
-    lower.push(pt);
+    while (hull.length >= 2 && cross(hull[hull.length - 2], hull[hull.length - 1], pt) <= 0) hull.pop();
+    hull.push(pt);
   }
-  const upper: Pt[] = [];
-  for (let i = p.length - 1; i >= 0; i--) {
+  const lower = hull.length + 1;
+  for (let i = n - 2; i >= 0; i--) {
     const pt = p[i];
-    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], pt) <= 0) upper.pop();
-    upper.push(pt);
+    while (hull.length >= lower && cross(hull[hull.length - 2], hull[hull.length - 1], pt) <= 0) hull.pop();
+    hull.push(pt);
   }
-  lower.pop();
-  upper.pop();
-  return lower.concat(upper);
+  hull.pop();
+  return hull;
 }
 
-interface MinRect {
-  cx: number;
-  cy: number;
-  w: number;
-  h: number;
-  angle: number;
-}
-
-/** Rectángulo de área mínima que cubre la envolvente (calipers giratorios). */
-function minAreaRect(hull: Pt[]): MinRect | null {
-  let best: MinRect | null = null;
-  let bestArea = Infinity;
-  const n = hull.length;
-  for (let i = 0; i < n; i++) {
-    const [x1, y1] = hull[i];
-    const [x2, y2] = hull[(i + 1) % n];
-    const ex = x2 - x1, ey = y2 - y1;
-    const len = Math.hypot(ex, ey);
+/** Rectángulo de área mínima que envuelve el polígono (calipers giratorios). */
+function minAreaRect(hull: Pt[]): { corners: Pt[]; area: number } | null {
+  if (hull.length < 3) return null;
+  let best: { corners: Pt[]; area: number } | null = null;
+  for (let i = 0; i < hull.length; i++) {
+    const a = hull[i];
+    const b = hull[(i + 1) % hull.length];
+    let dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
     if (len < 1e-6) continue;
-    const ux = ex / len, uy = ey / len;
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const [px, py] of hull) {
-      const dx = px - x1, dy = py - y1;
-      const rx = dx * ux + dy * uy;
-      const ry = -dx * uy + dy * ux;
-      if (rx < minX) minX = rx;
-      if (rx > maxX) maxX = rx;
-      if (ry < minY) minY = ry;
-      if (ry > maxY) maxY = ry;
+    dx /= len;
+    dy /= len;
+    let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+    for (const p of hull) {
+      const u = p.x * dx + p.y * dy;
+      const v = -p.x * dy + p.y * dx;
+      if (u < minU) minU = u;
+      if (u > maxU) maxU = u;
+      if (v < minV) minV = v;
+      if (v > maxV) maxV = v;
     }
-    const area = (maxX - minX) * (maxY - minY);
-    if (area < bestArea) {
-      bestArea = area;
-      const cxr = (minX + maxX) / 2, cyr = (minY + maxY) / 2;
-      best = {
-        cx: x1 + cxr * ux - cyr * uy,
-        cy: y1 + cxr * uy + cyr * ux,
-        w: maxX - minX,
-        h: maxY - minY,
-        angle: Math.atan2(uy, ux),
-      };
+    const area = (maxU - minU) * (maxV - minV);
+    if (best === null || area < best.area) {
+      const c = (u: number, v: number): Pt => ({ x: dx * u - dy * v, y: dy * u + dx * v });
+      best = { corners: [c(minU, minV), c(maxU, minV), c(maxU, maxV), c(minU, maxV)], area };
     }
   }
   return best;
 }
 
-export interface CropResult {
-  dataUrl: string;
+/** Ordena 4 puntos como [TL, TR, BR, BL]. */
+export function orderCorners(pts: Pt[]): [Pt, Pt, Pt, Pt] {
+  const s = [...pts].sort((p, q) => p.x + p.y - (q.x + q.y));
+  const d = [...pts].sort((p, q) => p.x - p.y - (q.x - q.y));
+  const tl = s[0];
+  const br = s[3];
+  const tr = d[3];
+  const bl = d[0];
+  return [tl, tr, br, bl];
 }
 
-export async function detectReceipt(src: string): Promise<CropResult | null> {
+const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
+
+/**
+ * Detecta el ticket y devuelve sus 4 esquinas en coordenadas de la imagen
+ * ORIGINAL, o `null` si no hay una estimación fiable (el editor usará el
+ * encuadre completo como punto de partida).
+ */
+export async function detectReceiptCorners(src: string): Promise<Pt[] | null> {
   let img: HTMLImageElement;
   try {
     img = await loadImage(src);
@@ -208,158 +149,223 @@ export async function detectReceipt(src: string): Promise<CropResult | null> {
   }
   const iw = img.naturalWidth || img.width;
   const ih = img.naturalHeight || img.height;
-  if (!iw || !ih || iw < 240 || ih < 240) return null;
+  if (!iw || !ih) return null;
 
-  // ── análisis en miniatura ──
-  const MINI = 560;
-  const k = Math.min(1, MINI / Math.max(iw, ih));
-  const mw = Math.max(2, Math.round(iw * k));
-  const mh = Math.max(2, Math.round(ih * k));
-  const total = mw * mh;
-
-  const mc = document.createElement("canvas");
-  mc.width = mw;
-  mc.height = mh;
-  const mctx = mc.getContext("2d", { willReadFrequently: true });
-  if (!mctx) return null;
-  mctx.imageSmoothingEnabled = true;
-  mctx.imageSmoothingQuality = "high";
-  mctx.drawImage(img, 0, 0, mw, mh);
-  let md: ImageData;
+  // Análisis en miniatura (rápido).
+  const AW = 420;
+  const k = AW / iw;
+  const aw = AW;
+  const ah = Math.max(1, Math.round(ih * k));
+  const c = document.createElement("canvas");
+  c.width = aw;
+  c.height = ah;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(img, 0, 0, aw, ah);
+  let data: ImageData;
   try {
-    md = mctx.getImageData(0, 0, mw, mh);
+    data = ctx.getImageData(0, 0, aw, ah);
   } catch {
     return null;
   }
-  const px = md.data;
+  const px = data.data;
+  const total = aw * ah;
 
-  const gray = new Uint8ClampedArray(total);
-  for (let i = 0, j = 0; i < px.length; i += 4, j++) {
-    gray[j] = Math.round(0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]);
-  }
-
-  // Desenfoque: el ticket (papel + texto) se convierte en una mancha clara.
-  const blurred = boxBlur(gray, mw, mh, Math.max(3, Math.round(MINI / 42)));
-
+  // Escala de grises + desenfoque.
+  const gray0 = new Uint8ClampedArray(total);
   const hist = new Uint32Array(256);
-  for (let j = 0; j < total; j++) hist[blurred[j]]++;
+  for (let i = 0, j = 0; i < px.length; i += 4, j++) {
+    const g = Math.round(0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]);
+    gray0[j] = g;
+    hist[g]++;
+  }
+  const gray = blurGray(gray0, aw, ah);
+
+  // Máscara binaria: el papel del ticket es la zona clara.
   const t = otsu(hist, total);
-  if (t < 30) return null; // foto sin contraste útil
-
   const mask = new Uint8Array(total);
-  const th = Math.max(36, t * 0.92);
-  for (let j = 0; j < total; j++) mask[j] = blurred[j] >= th ? 1 : 0;
+  let lightCount = 0;
+  for (let j = 0; j < total; j++) {
+    if (gray[j] > t) {
+      mask[j] = 1;
+      lightCount++;
+    }
+  }
+  // Si casi todo (o casi nada) es claro no hay separación papel/fondo.
+  const frac = lightCount / total;
+  if (frac > 0.94 || frac < 0.03) return null;
 
-  // Cierre morfológico: une partes del papel separadas por texto o sombras.
-  const rc = Math.max(2, Math.round(MINI / 140));
-  const closed = erode(dilate(mask, mw, mh, rc), mw, mh, rc);
-
-  // Componente conexa más grande (8-conexidad) = el papel.
-  const comp = new Int32Array(total).fill(-1);
-  const stack = new Int32Array(total);
-  let bestLabel = -1, bestArea = 0, label = 0;
-  for (let i = 0; i < total; i++) {
-    if (!closed[i] || comp[i] !== -1) continue;
-    let sp = 0;
-    stack[sp++] = i;
-    comp[i] = label;
+  // Componente conexa clara más grande + sus píxeles de contorno.
+  const seen = new Uint8Array(total);
+  let bestArea = 0;
+  let bestBoundary: Pt[] | null = null;
+  const stack: number[] = [];
+  for (let start = 0; start < total; start++) {
+    if (!mask[start] || seen[start]) continue;
+    stack.length = 0;
+    stack.push(start);
+    seen[start] = 1;
     let area = 0;
-    while (sp > 0) {
-      const p = stack[--sp];
+    const boundary: Pt[] = [];
+    while (stack.length) {
+      const idx = stack.pop()!;
+      const x = idx % aw;
+      const y = (idx / aw) | 0;
       area++;
-      const x = p % mw, y = (p / mw) | 0;
-      for (let dy = -1; dy <= 1; dy++) {
-        const ny = y + dy;
-        if (ny < 0 || ny >= mh) continue;
-        for (let dx = -1; dx <= 1; dx++) {
-          if (!dx && !dy) continue;
-          const nx = x + dx;
-          if (nx < 0 || nx >= mw) continue;
-          const ni = ny * mw + nx;
-          if (closed[ni] && comp[ni] === -1) {
-            comp[ni] = label;
-            stack[sp++] = ni;
-          }
+      let isBorder = false;
+      if (x === 0 || y === 0 || x === aw - 1 || y === ah - 1) isBorder = true;
+      else {
+        if (!mask[idx - 1] || !mask[idx + 1] || !mask[idx - aw] || !mask[idx + aw]) isBorder = true;
+      }
+      if (isBorder) boundary.push({ x, y });
+      const nb = [idx - 1, idx + 1, idx - aw, idx + aw];
+      for (const nIdx of nb) {
+        if (nIdx < 0 || nIdx >= total) continue;
+        if (mask[nIdx] && !seen[nIdx]) {
+          // evita cruzar de un borde al otro en la misma fila
+          if (Math.abs((nIdx % aw) - x) > 1) continue;
+          seen[nIdx] = 1;
+          stack.push(nIdx);
         }
       }
     }
-    if (area > bestArea) {
+    const areaFrac = area / total;
+    if (area > bestArea && areaFrac >= 0.1 && areaFrac <= 0.92) {
       bestArea = area;
-      bestLabel = label;
-    }
-    label++;
-  }
-
-  if (bestLabel < 0 || bestArea < total * 0.06 || bestArea > total * 0.955) return null;
-
-  // Contorno de la componente (píxeles con algún vecino que no es papel).
-  const boundary: Pt[] = [];
-  for (let y = 0; y < mh; y++) {
-    for (let x = 0; x < mw; x++) {
-      const i = y * mw + x;
-      if (comp[i] !== bestLabel) continue;
-      let edge = x === 0 || y === 0 || x === mw - 1 || y === mh - 1;
-      if (!edge) {
-        outer: for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            if (comp[(y + dy) * mw + (x + dx)] !== bestLabel) {
-              edge = true;
-              break outer;
-            }
-          }
-        }
-      }
-      if (edge) boundary.push([x, y]);
+      bestBoundary = boundary;
     }
   }
-  if (boundary.length < 12) return null;
+  if (!bestBoundary || bestBoundary.length < 8) return null;
 
-  const step = Math.max(1, Math.floor(boundary.length / 500));
-  const sample: Pt[] = [];
-  for (let i = 0; i < boundary.length; i += step) sample.push(boundary[i]);
-
-  const hull = convexHull(sample);
-  if (hull.length < 3) return null;
+  // Envolvente convexa → rectángulo de área mínima → esquinas.
+  const hull = convexHull(bestBoundary);
   const rect = minAreaRect(hull);
   if (!rect) return null;
 
-  // Solidez: el papel debe llenar su rectángulo mínimo (descarta formas raras).
-  if (bestArea / (rect.w * rect.h) < 0.5) return null;
-  // Si el rectángulo ya es (casi) toda la foto, no hay nada que recortar.
-  if (rect.w * rect.h > total * 0.94) return null;
-  if (rect.w < 60 || rect.h < 80) return null;
+  // Valida que se parezca a un ticket: rectangular y más alto que ancho.
+  const [p0, p1, p2, p3] = rect.corners;
+  const w = Math.max(dist(p0, p1), dist(p3, p2));
+  const h = Math.max(dist(p0, p3), dist(p1, p2));
+  const long = Math.max(w, h);
+  const short = Math.min(w, h);
+  if (short < 1) return null;
+  const aspect = long / short;
+  const rectFill = bestArea / rect.area; // solidez: cuánto del rectángulo ocupa el papel
+  if (aspect < 1.05 || aspect > 12) return null;
+  if (rectFill < 0.55) return null;
 
-  // ── recorte sobre la imagen original, enderezado por rotación ──
-  let angle = rect.angle;
-  let outW = rect.w / k, outH = rect.h / k;
-  if (outW > outH) {
-    // El ticket quedaría apaisado: giramos 90° para dejarlo en vertical.
-    angle += Math.PI / 2;
-    const tmp = outW;
-    outW = outH;
-    outH = tmp;
+  // Escala las esquinas al espacio de la imagen original.
+  const scale = iw / aw;
+  return orderCorners(rect.corners).map((p) => ({
+    x: Math.min(iw, Math.max(0, p.x * scale)),
+    y: Math.min(ih, Math.max(0, p.y * scale)),
+  }));
+}
+
+/* ── Corrección de perspectiva (homografía) ────────────────────────────── */
+
+/**
+ * Resuelve la homografía que lleva `from` → `to` (4 correspondencias).
+ * Devuelve [h11,h12,h13,h21,h22,h23,h31,h32,h33] con h33 = 1.
+ */
+function solveHomography(from: Pt[], to: Pt[]): number[] {
+  const A: number[][] = [];
+  const b: number[] = [];
+  for (let i = 0; i < 4; i++) {
+    const x = from[i].x, y = from[i].y;
+    const u = to[i].x, v = to[i].y;
+    A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]);
+    b.push(u);
+    A.push([0, 0, 0, x, y, 1, -v * x, -v * y]);
+    b.push(v);
   }
-  outW *= 1.03; // pequeño margen de seguridad
-  outH *= 1.03;
-  const cx = rect.cx / k, cy = rect.cy / k;
-  const diag = Math.hypot(iw, ih); // sobra por todos lados; el lienzo recorta solo
+  // Eliminación gaussiana (sistema 8×8).
+  const n = 8;
+  for (let col = 0; col < n; col++) {
+    let piv = col;
+    for (let r = col + 1; r < n; r++) if (Math.abs(A[r][col]) > Math.abs(A[piv][col])) piv = r;
+    if (Math.abs(A[piv][col]) < 1e-9) return [1, 0, 0, 0, 1, 0, 0, 0, 1];
+    [A[col], A[piv]] = [A[piv], A[col]];
+    [b[col], b[piv]] = [b[piv], b[col]];
+    for (let r = 0; r < n; r++) {
+      if (r === col) continue;
+      const f = A[r][col] / A[col][col];
+      for (let cc = col; cc < n; cc++) A[r][cc] -= f * A[col][cc];
+      b[r] -= f * b[col];
+    }
+  }
+  const h = b.map((v, i) => v / A[i][i]);
+  return [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1];
+}
 
-  const s = Math.min(1, 1900 / Math.max(outW, outH));
-  const cw = Math.max(2, Math.round(outW * s));
-  const ch = Math.max(2, Math.round(outH * s));
+/**
+ * Endereza y recorta la zona delimitada por `corners` (TL, TR, BR, BL en
+ * coordenadas de la imagen) devolviendo un rectángulo limpio en JPEG.
+ */
+export async function warpPerspective(src: string, corners: Pt[]): Promise<string> {
+  const img = await loadImage(src);
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+
+  const sc = document.createElement("canvas");
+  sc.width = iw;
+  sc.height = ih;
+  const sctx = sc.getContext("2d", { willReadFrequently: true })!;
+  sctx.drawImage(img, 0, 0);
+  const sdata = sctx.getImageData(0, 0, iw, ih);
+  const sd = sdata.data;
+
+  const [tl, tr, br, bl] = orderCorners(corners);
+  let outW = Math.round(Math.max(dist(tl, tr), dist(bl, br)));
+  let outH = Math.round(Math.max(dist(tl, bl), dist(tr, br)));
+  const cap = 2200;
+  const kk = Math.min(1, cap / Math.max(outW, outH));
+  outW = Math.max(1, Math.round(outW * kk));
+  outH = Math.max(1, Math.round(outH * kk));
+
+  // Homografía inversa: píxel de salida (u,v) → píxel de origen (x,y).
+  const dst = [
+    { x: 0, y: 0 },
+    { x: outW - 1, y: 0 },
+    { x: outW - 1, y: outH - 1 },
+    { x: 0, y: outH - 1 },
+  ];
+  const srcPts = [tl, tr, br, bl];
+  const H = solveHomography(dst, srcPts);
+
   const oc = document.createElement("canvas");
-  oc.width = cw;
-  oc.height = ch;
-  const octx = oc.getContext("2d");
-  if (!octx) return null;
-  octx.imageSmoothingEnabled = true;
-  octx.imageSmoothingQuality = "high";
-  octx.fillStyle = "#ffffff";
-  octx.fillRect(0, 0, cw, ch);
-  octx.translate(cw / 2, ch / 2);
-  octx.rotate(-angle);
-  octx.scale(s, s);
-  octx.drawImage(img, cx - diag / 2, cy - diag / 2, diag, diag, -diag / 2, -diag / 2, diag, diag);
+  oc.width = outW;
+  oc.height = outH;
+  const octx = oc.getContext("2d")!;
+  const out = octx.createImageData(outW, outH);
+  const od = out.data;
 
-  return { dataUrl: oc.toDataURL("image/jpeg", 0.92) };
+  const maxIdx = iw * ih - 1;
+  for (let v = 0; v < outH; v++) {
+    for (let u = 0; u < outW; u++) {
+      const w = H[6] * u + H[7] * v + H[8];
+      let sx = (H[0] * u + H[1] * v + H[2]) / w;
+      let sy = (H[3] * u + H[4] * v + H[5]) / w;
+      // Muestreo bilineal con límites seguros.
+      sx = Math.min(iw - 1.001, Math.max(0, sx));
+      sy = Math.min(ih - 1.001, Math.max(0, sy));
+      const x0 = sx | 0, y0 = sy | 0;
+      const x1 = Math.min(iw - 1, x0 + 1), y1 = Math.min(ih - 1, y0 + 1);
+      const fx = sx - x0, fy = sy - y0;
+      const i00 = (y0 * iw + x0) * 4;
+      const i10 = (y0 * iw + x1) * 4;
+      const i01 = (y1 * iw + x0) * 4;
+      const i11 = (y1 * iw + x1) * 4;
+      const o = (v * outW + u) * 4;
+      for (let ch = 0; ch < 3; ch++) {
+        const top = sd[i00 + ch] * (1 - fx) + sd[i10 + ch] * fx;
+        const bot = sd[i01 + ch] * (1 - fx) + sd[i11 + ch] * fx;
+        od[o + ch] = top * (1 - fy) + bot * fy;
+      }
+      od[o + 3] = 255;
+    }
+  }
+  void maxIdx;
+  octx.putImageData(out, 0, 0);
+  return oc.toDataURL("image/jpeg", 0.92);
 }
