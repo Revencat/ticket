@@ -135,54 +135,82 @@ function parseAmount(s: string): number {
 }
 
 /**
- * Extrae todos los importes de una línea, tolerando ruido de OCR
- * (dígitos confundidos y espacios sueltos: «2 3 , 4 5», «I.234,56»…).
+ * Prepara una línea para extraer importes: convierte en dígito las letras que
+ * el OCR confunde cuando están pegadas a números («23,4S» → «23,45»,
+ * «I.234,56» → «1.234,56») y unifica separadores decimales raros («23'45»).
  */
-function amountsIn(l: string): string[] {
-  const out: string[] = [];
-  const re = /\d[\dOoIlSBbZzgGDd .,]{0,16}/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(l))) {
-    let tok = m[0].replace(/[ .,]+$/g, "");
-    if (tok.length < 2) continue;
-    tok = repairDigits(tok);
-    // exige al menos 2 dígitos en total (descarta "2 x", fechas sueltas…)
-    if (tok.replace(/\D/g, "").length >= 2) out.push(tok);
-  }
-  return out;
+function repairLine(l: string): string {
+  const s = l.replace(/[OoQqDdBbIlZzGgTSs]/g, (ch, off, str) => {
+    const prev = str[off - 1] || "";
+    const next = str[off + 1] || "";
+    return /[\d.,]/.test(prev) || /[\d.,]/.test(next) ? (CONFUSE[ch] ?? ch) : ch;
+  });
+  return s.replace(/(\d)[';](\d)/g, "$1,$2");
 }
 
-/** ¿La línea contiene la palabra "total" (tolerando errores típicos de OCR)? */
-function hasTotalWord(l: string): boolean {
-  return norm(l)
-    .split(/[^a-z0-9]+/)
-    .some((t) => t.length >= 4 && t.length <= 7 && lev(t, "total") <= 1);
+/**
+ * Importes en formato es-ES. Reconoce:
+ *   1.234,56 · 1 234,56 · 23,45 · 23,4 · 23.45 · 1.234
+ * y descarta fechas (31.12.2024), horas (18:34) y códigos de barras,
+ * que antes se confundían con importes y arruinaban el total.
+ */
+const AMOUNT_RE =
+  /\d{1,3}(?:[ .]\d{3})+, ?\d{1,2}|\d+ ?[,.] ?\d{1,2}(?!\d)|\d{1,3}(?:\.\d{3})+(?![.,\d])/g;
+
+function amountsIn(l: string): string[] {
+  return [...repairLine(l).matchAll(AMOUNT_RE)].map((m) => m[0].trim());
 }
 
 /** Líneas que parecen total pero son otra cosa (IVA, subtotales, entrega…). */
-const TOTAL_BAD = /sub\s*total|base\s*imp|\biva\b|dcto|\bdto\b|descuento|ahorr|entregad|cambio|efectiv|tarjet|\bvisa\b|mastercard|recargo|devoluci|n\.?i\.?f|c\.?i\.?f/;
+const TOTAL_BAD =
+  /sub\s*total|base\s*imp|\biva\b|dcto|\bdto\b|descuento|ahorr|entregad|cambio|efectiv|tarjet|\bvisa\b|mastercard|recargo|devoluci|redondeo|cuota|n\.?i\.?f|c\.?i\.?f/;
+
+/**
+ * Peso de la línea como candidata a «total» (0 = no lo es).
+ * Admite errores de OCR («t0tal», «totai», «TO TAL») buscando «total» de forma
+ * difusa sobre la línea compactada, y marcadores alternativos («a pagar»,
+ * «debe», «importe», «suma») cuando la palabra total no aparece.
+ */
+function totalWeight(l: string): number {
+  const n = norm(l);
+  if (TOTAL_BAD.test(n)) return 0;
+  const compact = n.replace(/[^a-z]/g, "");
+  if (compact.length >= 5 && fuzzyIncludes(compact, "total", 1)) {
+    let w = 2;
+    if (/pagar|debe|adeuda|abonar/.test(n)) w += 2.5; // «TOTAL A PAGAR»
+    if (/€|eur/.test(n)) w += 0.5;
+    return w;
+  }
+  if (/\ba\s?pagar\b|\bpagar\b|\bdebe\b|\badeuda\b|\ba\s?abonar\b/.test(n)) return 2.5;
+  if (/\bimporte\b/.test(n)) return 1.2;
+  if (/\bsuma\b/.test(n)) return 1;
+  return 0;
+}
 
 function detectTotal(lines: string[]): number {
-  // 1) Votación ponderada entre las líneas que dicen "total"
-  const votes = new Map<number, number>(); // importe → peso
+  // 1) Votación ponderada entre las líneas candidatas a total
+  const votes = new Map<number, number>(); // importe → peso acumulado
+  const nLines = lines.length;
   lines.forEach((l, i) => {
-    const n = norm(l);
-    if (TOTAL_BAD.test(n)) return;
-    if (!hasTotalWord(l)) return;
-    let amts = amountsIn(l);
-    // Si la línea de TOTAL no lleva importe, suele ir en la línea siguiente
-    if (!amts.length) {
-      for (let k = i + 1; k < Math.min(i + 3, lines.length); k++) {
-        amts = amountsIn(lines[k]);
-        if (amts.length) break;
+    const w0 = totalWeight(l);
+    if (w0 <= 0) return;
+    const amts = amountsIn(l);
+    let val = 0;
+    if (amts.length) {
+      val = parseAmount(amts[amts.length - 1]);
+    } else {
+      // Ticket en columnas: el importe suele ir en la línea siguiente
+      for (let j = i + 1; j <= Math.min(i + 2, nLines - 1); j++) {
+        if (TOTAL_BAD.test(norm(lines[j]))) continue;
+        const a2 = amountsIn(lines[j]);
+        if (a2.length) {
+          val = parseAmount(a2[0]);
+          break;
+        }
       }
     }
-    if (!amts.length) return;
-    const val = parseAmount(amts[amts.length - 1]);
-    if (val <= 0) return;
-    let w = 2 + i / Math.max(lines.length, 1); // cuanto más abajo, más probable
-    if (/pagar|debe|adeuda/.test(n)) w += 3; // "TOTAL A PAGAR"
-    if (/€|eur/.test(n)) w += 1;
+    if (val <= 0 || val > 100000) return;
+    const w = w0 + (i / Math.max(nLines, 1)) * 1.5 + (amts.length ? 0.5 : 0);
     votes.set(val, (votes.get(val) || 0) + w);
   });
   if (votes.size) {
@@ -190,13 +218,15 @@ function detectTotal(lines: string[]): number {
     for (const [v, w] of votes) if (w > bestW) { bestW = w; best = v; }
     return best;
   }
-  // 2) Plan B: el mayor importe de las últimas líneas (excluyendo entrega/cambio)
-  const tail = lines.slice(-6);
+  // 2) Plan B: el mayor importe del último tercio, descartando líneas contables
+  const tail = lines.slice(-Math.max(4, Math.ceil(nLines * 0.35)));
   let best = 0;
   for (const l of tail) {
-    const n = norm(l);
-    if (/entregad|cambio|efectiv|tarjet/.test(n)) continue;
-    for (const a of amountsIn(l)) best = Math.max(best, parseAmount(a));
+    if (TOTAL_BAD.test(norm(l))) continue;
+    for (const a of amountsIn(l)) {
+      const v = parseAmount(a);
+      if (v > best && v <= 100000) best = v;
+    }
   }
   return best;
 }
@@ -313,10 +343,11 @@ export function parseReceipt(text: string, stores: StoreEntry[], categories: Cat
   for (const l of lines) {
     if (items.length >= 30) break;
     if (SKIP_ITEM.test(l)) continue;
-    const amts = amountsIn(l);
+    const rl = repairLine(l);
+    const amts = amountsIn(rl);
     if (!amts.length) continue;
     const lastAmt = amts[amts.length - 1];
-    let name = l.slice(0, l.lastIndexOf(lastAmt)).replace(/[.:·\-–]+$/g, "").replace(/\s{2,}/g, " ").trim();
+    let name = rl.slice(0, rl.lastIndexOf(lastAmt)).replace(/[.:·\-–]+$/g, "").replace(/\s{2,}/g, " ").trim();
     if (name.length < 3) continue;
     let qty = 1;
     const q = name.match(/^(\d{1,2})\s*[xX*×]\s+/) || name.match(/\s[xX×]\s*(\d{1,2})$/);
