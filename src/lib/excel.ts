@@ -3,6 +3,7 @@ import { format, parseISO, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Category, Ticket } from "../types";
 import { fmtDate, toJpeg, todayISO, monthKey } from "./util";
+import { imageSize } from "./preprocess";
 
 function hexARGB(hex: string) {
   return "FF" + hex.replace("#", "").toUpperCase().padStart(6, "0");
@@ -41,15 +42,33 @@ export async function exportExcel(
   const sheets: ExportResult["sheets"] = [];
   let photos = 0;
 
-  // 1) Convertir todas las fotos en paralelo (JPEG pequeño) → mucho más rápido
-  const photoMap = new Map<string, string>();
+  // 1) Convertir todas las fotos en paralelo → mucho más rápido.
+  //    photoThumb: miniatura para la celda "Foto" de cada hoja.
+  //    photoFull: versión grande para la hoja "Fotos" (la que se abre al hacer clic).
+  const photoThumb = new Map<string, string>();
+  const photoFull = new Map<string, string>();
   if (opts.includePhotos) {
-    const jobs = byDate.filter((t) => t.photo).map(async (t) => {
+    const withPhoto = byDate.filter((t) => t.photo);
+    const jobs = withPhoto.map(async (t) => {
       try {
-        photoMap.set(t.id, await toJpeg(t.photo!, 520, 0.72));
+        photoThumb.set(t.id, await toJpeg(t.photo!, 560, 0.78));
+        photoFull.set(t.id, await toJpeg(t.photo!, 1100, 0.85));
       } catch {}
     });
     await Promise.all(jobs);
+  }
+
+  // 2) Asignar a cada ticket con foto su fila en la hoja "Fotos" (para los enlaces).
+  //    La hoja Fotos tiene cabecera en la fila 1 y una fila por foto a partir de la 2.
+  const fotoRowById = new Map<string, number>();
+  if (opts.includePhotos) {
+    let r = 2;
+    for (const t of byDate) {
+      if (t.photo && photoFull.has(t.id)) {
+        fotoRowById.set(t.id, r);
+        r++;
+      }
+    }
   }
 
   const styleHeader = (ws: ExcelJS.Worksheet) => {
@@ -79,7 +98,7 @@ export async function exportExcel(
       { header: "Conceptos", key: "conceptos", width: 52 },
       { header: "Garantía", key: "garantia", width: 10 },
       { header: "Total", key: "total", width: 12 },
-      { header: "Foto", key: "foto", width: 14 },
+      { header: "Foto", key: "foto", width: 24 },
     ];
     styleHeader(ws);
 
@@ -118,13 +137,25 @@ export async function exportExcel(
       r.getCell("fecha").alignment = { vertical: "middle" };
 
       const conceptLines = Math.max(1, t.items.length);
-      const hasPhoto = opts.includePhotos && photoMap.has(t.id);
-      r.height = hasPhoto ? 50 : Math.min(78, 15 + conceptLines * 12.5);
+      const hasPhoto = opts.includePhotos && photoThumb.has(t.id);
+      const fotoTarget = fotoRowById.get(t.id);
+      r.height = hasPhoto ? 72 : Math.min(78, 15 + conceptLines * 12.5);
 
       if (hasPhoto) {
-        const id = wb.addImage({ base64: photoMap.get(t.id)!.replace(/^image\/\w+;base64,/, ""), extension: "jpeg" });
-        ws.addImage(id, { tl: { col: 6, row: r.number - 1 } as never, ext: { width: 86, height: 60 }, editAs: "oneCell" });
+        // Miniatura anclada arriba a la izquierda de la celda "Foto".
+        const id = wb.addImage({ base64: photoThumb.get(t.id)!.replace(/^image\/\w+;base64,/, ""), extension: "jpeg" });
+        ws.addImage(id, { tl: { col: 6, row: r.number - 1 } as never, ext: { width: 150, height: 62 }, editAs: "oneCell" });
         photos++;
+        // Enlace interno clicable abajo: al pulsarlo, Excel salta a la foto a
+        // tamaño completo en la hoja "Fotos".
+        const fotoCell = r.getCell("foto");
+        if (fotoTarget) {
+          fotoCell.value = { text: "📷 Abrir foto →", hyperlink: `#'Fotos'!A${fotoTarget}` };
+        } else {
+          fotoCell.value = "📷";
+        }
+        fotoCell.alignment = { vertical: "bottom", horizontal: "left", wrapText: false };
+        fotoCell.font = { size: 10, color: { argb: "FF0E5FD8" }, underline: true };
       } else {
         r.getCell("foto").value = t.photo ? "sí" : "no";
         r.getCell("foto").alignment = { vertical: "middle", horizontal: "center" };
@@ -245,6 +276,44 @@ export async function exportExcel(
   }
   const otros = byDate.filter((t) => t.category === "otros" || !catById.has(t.category));
   if (otros.length) buildTicketSheet("Otros", otros, "FF64748B");
+
+  // Hoja "Fotos": cada ticket con foto, a tamaño completo, con su ficha al lado.
+  if (opts.includePhotos && fotoRowById.size > 0) {
+    const fw = wb.addWorksheet("Fotos", { views: [{ showGridLines: false }] });
+    fw.properties.tabColor = { argb: "FF0E5FD8" };
+    fw.columns = [{ width: 58 }, { width: 34 }];
+    fw.mergeCells("A1:B1");
+    const h1 = fw.getCell("A1");
+    h1.value = "Fotos de tickets — clic en «Abrir foto» de cualquier hoja para saltar aquí";
+    h1.font = { bold: true, size: 12, color: { argb: INK } };
+    h1.alignment = { vertical: "middle" };
+    fw.getRow(1).height = 24;
+
+    for (const t of byDate) {
+      const row = fotoRowById.get(t.id);
+      if (!row || !photoFull.has(t.id)) continue;
+      const cat = catById.get(t.category);
+      // Dimensiones reales para no deformar la foto (los tickets suelen ser verticales).
+      const size = await imageSize(photoFull.get(t.id)!);
+      const maxDim = 400;
+      const scale = Math.min(maxDim / size.w, maxDim / size.h, 1);
+      const w = Math.max(120, Math.round(size.w * scale));
+      const h = Math.max(120, Math.round(size.h * scale));
+
+      const imgId = wb.addImage({ base64: photoFull.get(t.id)!.replace(/^image\/\w+;base64,/, ""), extension: "jpeg" });
+      fw.addImage(imgId, { tl: { col: 0, row: row - 1 } as never, ext: { width: w, height: h }, editAs: "oneCell" });
+
+      // Altura de fila proporcional a la foto (puntos ≈ px × 0.75).
+      fw.getRow(row).height = Math.max(90, h * 0.78);
+
+      const caption = fw.getCell(`B${row}`);
+      caption.value = `${t.store}\n${fmtDate(t.date)}\nTotal: ${t.total.toFixed(2).replace(".", ",")} €\nCategoría: ${cat?.name || "Otros"}`;
+      caption.alignment = { vertical: "top", horizontal: "left", wrapText: true };
+      caption.font = { size: 11, color: { argb: INK } };
+      caption.border = { left: { style: "thin", color: { argb: LINE } } };
+    }
+    sheets.push({ name: "Fotos", rows: fotoRowById.size });
+  }
 
   const fileName = `ticketbox_${todayISO()}.xlsx`;
   const buf = await wb.xlsx.writeBuffer();
