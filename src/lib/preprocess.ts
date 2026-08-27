@@ -61,7 +61,17 @@ function otsuThreshold(hist: Uint32Array, total: number): number {
  * Preprocesa una imagen para OCR y devuelve un dataURL en alto contraste.
  * Si algo falla, devuelve la imagen de entrada sin tocar (el OCR sigue funcionando).
  */
-export async function preprocessForOcr(src: string, targetLongEdge = 1600): Promise<string> {
+export interface PreprocessOptions {
+  /** Lado mayor objetivo tras el reescalado. */
+  targetLong?: number;
+  /** Binarización de Otsu (blanco/negro puros). Por defecto sí. */
+  binarize?: boolean;
+  /** Invertir colores (para fotos oscuras o tickets con fondo negro). */
+  invert?: boolean;
+}
+
+export async function preprocessForOcr(src: string, opts: PreprocessOptions = {}): Promise<string> {
+  const { targetLong = 1600, binarize = true, invert = false } = opts;
   let img: HTMLImageElement;
   try {
     img = await loadImage(src);
@@ -73,7 +83,7 @@ export async function preprocessForOcr(src: string, targetLongEdge = 1600): Prom
   const ih = img.naturalHeight || img.height;
   if (!iw || !ih) return src;
 
-  const scale = targetLongEdge / Math.max(iw, ih);
+  const scale = targetLong / Math.max(iw, ih);
   // Nunca reducir (solo ampliar o mantener): la foto ya puede ser grande.
   const k = scale > 1 ? scale : 1;
   const w = Math.max(1, Math.round(iw * k));
@@ -134,10 +144,12 @@ export async function preprocessForOcr(src: string, targetLongEdge = 1600): Prom
     hist2[v]++;
   }
 
-  // 4) Binarización de Otsu.
-  const t = otsuThreshold(hist2, total);
+  // 4) Opcional: invertir (fondos oscuros) y/o binarizar con Otsu.
+  const t = binarize ? otsuThreshold(hist2, total) : -1;
   for (let j = 0, i = 0; j < total; j++, i += 4) {
-    const v = stretched[j] > t ? 255 : 0;
+    let v: number;
+    if (binarize) v = stretched[j] > t ? 255 : 0;
+    else v = invert ? 255 - stretched[j] : stretched[j];
     px[i] = v;
     px[i + 1] = v;
     px[i + 2] = v;

@@ -144,18 +144,23 @@ export async function exportExcel(
       if (hasPhoto) {
         // Miniatura anclada arriba a la izquierda de la celda "Foto".
         const id = wb.addImage({ base64: photoThumb.get(t.id)!.replace(/^image\/\w+;base64,/, ""), extension: "jpeg" });
-        ws.addImage(id, { tl: { col: 6, row: r.number - 1 } as never, ext: { width: 150, height: 62 }, editAs: "oneCell" });
+        ws.addImage(id, { tl: { col: 6, row: r.number - 1 } as never, ext: { width: 150, height: 64 }, editAs: "oneCell" });
         photos++;
-        // Enlace interno clicable abajo: al pulsarlo, Excel salta a la foto a
+        // Enlace clicable con fórmula HYPERLINK: es la forma más fiable de
+        // salto interno en Excel/LibreOffice (los hipervínculos nativos de
+        // ExcelJS no siempre se resuelven). Al pulsarlo, salta a la foto a
         // tamaño completo en la hoja "Fotos".
         const fotoCell = r.getCell("foto");
         if (fotoTarget) {
-          fotoCell.value = { text: "📷 Abrir foto →", hyperlink: `#'Fotos'!A${fotoTarget}` };
+          fotoCell.value = {
+            formula: `HYPERLINK("#'Fotos'!A${fotoTarget}","► VER FOTO GRANDE")`,
+            result: "► VER FOTO GRANDE",
+          };
         } else {
           fotoCell.value = "📷";
         }
         fotoCell.alignment = { vertical: "bottom", horizontal: "left", wrapText: false };
-        fotoCell.font = { size: 10, color: { argb: "FF0E5FD8" }, underline: true };
+        fotoCell.font = { size: 9.5, bold: true, color: { argb: "FF0E5FD8" }, underline: true };
       } else {
         r.getCell("foto").value = t.photo ? "sí" : "no";
         r.getCell("foto").alignment = { vertical: "middle", horizontal: "center" };
@@ -281,10 +286,11 @@ export async function exportExcel(
   if (opts.includePhotos && fotoRowById.size > 0) {
     const fw = wb.addWorksheet("Fotos", { views: [{ showGridLines: false }] });
     fw.properties.tabColor = { argb: "FF0E5FD8" };
-    fw.columns = [{ width: 58 }, { width: 34 }];
+    // Columna A ancha para la foto (≈ 70 caracteres ≈ 480 px) y B para la ficha.
+    fw.columns = [{ width: 70 }, { width: 36 }];
     fw.mergeCells("A1:B1");
     const h1 = fw.getCell("A1");
-    h1.value = "Fotos de tickets — clic en «Abrir foto» de cualquier hoja para saltar aquí";
+    h1.value = "Fotos de los tickets — pulsa «► VER FOTO GRANDE» en cualquier hoja para saltar aquí";
     h1.font = { bold: true, size: 12, color: { argb: INK } };
     h1.alignment = { vertical: "middle" };
     fw.getRow(1).height = 24;
@@ -295,19 +301,19 @@ export async function exportExcel(
       const cat = catById.get(t.category);
       // Dimensiones reales para no deformar la foto (los tickets suelen ser verticales).
       const size = await imageSize(photoFull.get(t.id)!);
-      const maxDim = 400;
+      const maxDim = 480;
       const scale = Math.min(maxDim / size.w, maxDim / size.h, 1);
-      const w = Math.max(120, Math.round(size.w * scale));
-      const h = Math.max(120, Math.round(size.h * scale));
+      const w = Math.max(160, Math.round(size.w * scale));
+      const h = Math.max(160, Math.round(size.h * scale));
 
       const imgId = wb.addImage({ base64: photoFull.get(t.id)!.replace(/^image\/\w+;base64,/, ""), extension: "jpeg" });
       fw.addImage(imgId, { tl: { col: 0, row: row - 1 } as never, ext: { width: w, height: h }, editAs: "oneCell" });
 
-      // Altura de fila proporcional a la foto (puntos ≈ px × 0.75).
-      fw.getRow(row).height = Math.max(90, h * 0.78);
+      // Altura de fila proporcional a la foto (puntos ≈ px × 0.75) + margen.
+      fw.getRow(row).height = Math.max(130, h * 0.8);
 
       const caption = fw.getCell(`B${row}`);
-      caption.value = `${t.store}\n${fmtDate(t.date)}\nTotal: ${t.total.toFixed(2).replace(".", ",")} €\nCategoría: ${cat?.name || "Otros"}`;
+      caption.value = `${t.store}\n${fmtDate(t.date)}\nTotal: ${t.total.toFixed(2).replace(".", ",")} €\nCategoría: ${cat?.name || "Otros"}\n${t.items.length} artículo${t.items.length !== 1 ? "s" : ""}`;
       caption.alignment = { vertical: "top", horizontal: "left", wrapText: true };
       caption.font = { size: 11, color: { argb: INK } };
       caption.border = { left: { style: "thin", color: { argb: LINE } } };

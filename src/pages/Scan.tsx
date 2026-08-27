@@ -65,7 +65,7 @@ export default function Scan() {
     };
   }, [phase]);
 
-  const loadDraft = (d: ScanDraft) => {
+  const loadDraft = (d: ScanDraft, conf?: number) => {
     setStore(d.store);
     setDate(d.date);
     setTotal(d.total ? String(d.total).replace(".", ",") : "");
@@ -74,7 +74,7 @@ export default function Scan() {
     setItems(d.items.map((i) => ({ id: uid(), name: i.name, qty: i.qty, price: i.price, warrantyMonths: i.warrantyMonths })));
     setPhoto(d.photo);
     setRawText(d.raw || "");
-    setConfidence(d.confidence ?? null);
+    setConfidence(conf ?? null);
     setShowRaw(false);
     setFormError("");
     setPhase("review");
@@ -85,9 +85,48 @@ export default function Scan() {
     setPhase("processing");
     setProgress({ phase: "Cargando motor OCR", pct: null });
     try {
-      const { text, confidence: conf } = await runOcr(dataUrl, setProgress);
-      loadDraft({ ...parseReceipt(text, allStores, categories), photo: dataUrl, raw: text, confidence: conf });
-      toast("ok", conf >= 70 ? "Texto leído con buena nitidez. Revisa los datos." : "Texto leído, pero con nitidez media: revisa con atención los datos.");
+      // Primera lectura: imagen binarizada (tinta sobre papel).
+      const res = await runOcr(dataUrl, setProgress);
+      let bestText = res.text;
+      let bestConf = res.confidence;
+      let bestDraft = parseReceipt(res.text, allStores, categories);
+
+      // Si no encontró total (o la lectura es dudosa), relee con otros procesados
+      // de imagen y se queda con el mejor resultado. Pasa a menudo con fotos
+      // oscuras o con brillos: la binarización no siempre es la mejor opción.
+      const score = (d: ScanDraft, c: number) => (d.total > 0 ? 2.5 : 0) + d.items.length * 0.3 + c / 100;
+      if (!bestDraft.total || (res.confidence < 55 && bestDraft.items.length < 2)) {
+        const variants = [
+          { binarize: false }, // solo escala de grises + contraste
+          { binarize: false, invert: true }, // invertida (fondos oscuros)
+        ];
+        for (const v of variants) {
+          if (bestDraft.total && bestConf >= 60) break; // ya tenemos una lectura decente
+          setProgress({ phase: v.invert ? "Probando imagen invertida…" : "Mejorando la imagen y releyendo…", pct: null });
+          try {
+            const r2 = await runOcr(dataUrl, setProgress, v);
+            const d2 = parseReceipt(r2.text, allStores, categories);
+            if (score(d2, r2.confidence) > score(bestDraft, bestConf)) {
+              bestText = r2.text;
+              bestConf = r2.confidence;
+              bestDraft = d2;
+            }
+          } catch {
+            /* nos quedamos con la lectura actual */
+          }
+        }
+      }
+
+      setRawText(bestText);
+      loadDraft({ ...bestDraft, photo: dataUrl, raw: bestText }, bestConf);
+      toast(
+        bestDraft.total > 0 ? "ok" : "warn",
+        bestDraft.total > 0
+          ? bestConf >= 70
+            ? "Texto leído con buena nitidez. Revisa los datos."
+            : "Texto leído, pero con nitidez media: revisa con atención los datos."
+          : "Leído, pero no detecté el total: compruébalo antes de guardar."
+      );
     } catch {
       setErrMsg("El OCR no pudo procesar la imagen (¿sin conexión? El motor descarga el idioma la primera vez). Puedes crear el ticket manualmente.");
       setPhase("error");
