@@ -1,16 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Upload, Sparkles, ArrowLeft, Trash2, Plus, Save, RefreshCw, AlertTriangle, Loader2, ScanLine, FileQuestion, ShieldCheck, FileText, Gauge, Flashlight, FlashlightOff, Scissors, Check } from "lucide-react";
+import { Camera, Upload, Sparkles, ArrowLeft, Trash2, Plus, Save, RefreshCw, AlertTriangle, Loader2, ScanLine, FileQuestion, ShieldCheck, FileText, Gauge, Flashlight, FlashlightOff } from "lucide-react";
 import { useApp } from "../lib/store";
-import { runOcr, parseReceipt, simulateScan, type OcrProgress, type ScanDraft } from "../lib/ocr";
+import { runOcr, parseReceipt, simulateScan, MAX_TOTAL, type OcrProgress, type ScanDraft } from "../lib/ocr";
 import { setPending } from "../lib/pending";
-import { detectReceipt } from "../lib/crop";
+import { detectReceiptCorners, type Pt } from "../lib/crop";
 import { downscaleImage, fmtEUR, todayISO, uid, cls } from "../lib/util";
 import type { LineItem, Ticket } from "../types";
 import { Button, Field, inputCls } from "../components/ui";
+import CropEditor from "../components/CropEditor";
 
-type Phase = "input" | "camera" | "processing" | "review" | "error" | "choose-crop";
+type Phase = "input" | "camera" | "processing" | "review" | "error" | "adjust";
 
 interface ReviewItem extends LineItem {}
 
@@ -24,7 +25,7 @@ export default function Scan() {
   const [dragOver, setDragOver] = useState(false);
   const [torch, setTorch] = useState(false);
   const [hasTorch, setHasTorch] = useState(false);
-  const [cropDataUrl, setCropDataUrl] = useState<string>("");
+  const [adjustCorners, setAdjustCorners] = useState<Pt[] | null>(null);
   const [originalForCrop, setOriginalForCrop] = useState<string>("");
 
   const [store, setStore] = useState("");
@@ -150,31 +151,35 @@ export default function Scan() {
   };
 
   /**
-   * Tras capturar o subir una foto, intenta detectar los bordes del ticket.
-   * Si los encuentra, pregunta si recortar; si no, pasa directo al OCR.
+   * Tras capturar o subir una foto, detecta el ticket y abre el editor de
+   * esquinas (modo documento) para que el usuario ajuste el recorte.
    */
   const preparePhoto = async (dataUrl: string) => {
     setOriginalForCrop(dataUrl);
     setPhase("processing");
-    setProgress({ phase: "Buscando los bordes del ticket…", pct: null });
+    setProgress({ phase: "Buscando el ticket en la foto…", pct: null });
+    let corners: Pt[] | null = null;
     try {
-      const crop = await detectReceipt(dataUrl);
-      if (crop) {
-        setCropDataUrl(crop.dataUrl);
-        setPhase("choose-crop");
-        return;
-      }
+      corners = await detectReceiptCorners(dataUrl);
     } catch {
-      /* sin recorte: seguimos con la original */
+      corners = null;
     }
-    setCropDataUrl("");
-    await startOcr(dataUrl);
+    setAdjustCorners(corners);
+    setPhase("adjust");
   };
 
-  const choosePhoto = (kind: "crop" | "original") => {
-    const src = kind === "crop" ? cropDataUrl : originalForCrop;
-    setCropDataUrl("");
+  /** El usuario confirmó el recorte: llega la imagen ya enderezada. */
+  const onCropConfirm = (cropped: string) => {
     setOriginalForCrop("");
+    setAdjustCorners(null);
+    startOcr(cropped);
+  };
+
+  /** El usuario prefiere la foto completa. */
+  const onCropSkip = () => {
+    const src = originalForCrop;
+    setOriginalForCrop("");
+    setAdjustCorners(null);
     startOcr(src);
   };
 
@@ -258,6 +263,10 @@ export default function Scan() {
     const t = parseFloat(total.replace(/\./g, "").replace(",", "."));
     if (!Number.isFinite(t) || t <= 0) {
       setFormError("Indica un total válido, por ejemplo 23,45.");
+      return;
+    }
+    if (t > MAX_TOTAL) {
+      setFormError(`El importe máximo permitido por ticket es de ${MAX_TOTAL.toLocaleString("es-ES")} €. Revisa el total detectado.`);
       return;
     }
     setSaving(true);
@@ -435,38 +444,14 @@ export default function Scan() {
           </motion.div>
         )}
 
-        {/* ── ¿RECORTAR EL TICKET? ────────────────────────────── */}
-        {phase === "choose-crop" && (
-          <motion.div key="choose-crop" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="bg-card border border-line rounded-xl p-5">
-            <div className="flex items-center gap-2.5 mb-1">
-              <span className="w-9 h-9 rounded-lg bg-acc/10 text-acc flex items-center justify-center"><Scissors size={17} /></span>
-              <div>
-                <h2 className="font-display font-bold text-lg leading-tight">Detecté los bordes del ticket</h2>
-                <p className="text-mut text-[12.5px]">¿Quieres recortarlo para dejar solo el papel?</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <button
-                onClick={() => choosePhoto("crop")}
-                className="group rounded-xl border-2 border-acc/60 bg-card2/50 p-2.5 hover:border-acc hover:bg-acc/6 transition-all cursor-pointer text-left"
-              >
-                <img src={cropDataUrl} alt="Ticket recortado" className="w-full max-h-[280px] object-contain rounded-lg bg-white" />
-                <p className="flex items-center gap-1.5 mt-2 px-1 text-[13px] font-semibold text-acc"><Check size={15} /> Usar recortada</p>
-              </button>
-              <button
-                onClick={() => choosePhoto("original")}
-                className="group rounded-xl border-2 border-line bg-card2/50 p-2.5 hover:border-line2 transition-all cursor-pointer text-left"
-              >
-                <img src={originalForCrop} alt="Foto original" className="w-full max-h-[280px] object-contain rounded-lg bg-white" />
-                <p className="flex items-center gap-1.5 mt-2 px-1 text-[13px] font-medium text-mut">Mantener original</p>
-              </button>
-            </div>
-
-            <p className="text-[12px] text-mut mt-3 leading-relaxed">
-              El recorte suele mejorar la lectura del OCR. La foto original no se modifica: solo cambia la que se analiza y se archiva.
-            </p>
-          </motion.div>
+        {/* ── AJUSTE DE ESQUINAS (modo documento) ─────────────── */}
+        {phase === "adjust" && originalForCrop && (
+          <CropEditor
+            src={originalForCrop}
+            initialCorners={adjustCorners}
+            onConfirm={onCropConfirm}
+            onSkip={onCropSkip}
+          />
         )}
 
         {/* ── PROCESANDO ──────────────────────────────────────── */}

@@ -166,6 +166,13 @@ const TOTAL_BAD =
   /sub\s*total|base\s*imp|\biva\b|dcto|\bdto\b|descuento|ahorr|entregad|cambio|efectiv|tarjet|\bvisa\b|mastercard|recargo|devoluci|redondeo|cuota|n\.?i\.?f|c\.?i\.?f/;
 
 /**
+ * Importe máximo que puede tener un ticket (lo define el producto: 1.000 €).
+ * Cualquier cifra mayor se descarta como error de lectura (código de barras,
+ * teléfono, nº de factura…). Se exporta para validar también al guardar.
+ */
+export const MAX_TOTAL = 1000;
+
+/**
  * Peso de la línea como candidata a «total» (0 = no lo es).
  * Admite errores de OCR («t0tal», «totai», «TO TAL») buscando «total» de forma
  * difusa sobre la línea compactada, y marcadores alternativos («a pagar»,
@@ -209,7 +216,7 @@ function detectTotal(lines: string[]): number {
         }
       }
     }
-    if (val <= 0 || val > 100000) return;
+    if (val <= 0 || val > MAX_TOTAL) return;
     const w = w0 + (i / Math.max(nLines, 1)) * 1.5 + (amts.length ? 0.5 : 0);
     votes.set(val, (votes.get(val) || 0) + w);
   });
@@ -225,7 +232,7 @@ function detectTotal(lines: string[]): number {
     if (TOTAL_BAD.test(norm(l))) continue;
     for (const a of amountsIn(l)) {
       const v = parseAmount(a);
-      if (v > best && v <= 100000) best = v;
+      if (v > best && v <= MAX_TOTAL) best = v;
     }
   }
   return best;
