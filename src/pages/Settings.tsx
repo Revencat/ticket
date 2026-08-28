@@ -39,7 +39,7 @@ export default function Settings() {
                 {t.id === "custom" && (
                   <input
                     type="color"
-                    value={settings.customColor || "#0f9d63"}
+                    value={settings.customColor || "#00b4d8"}
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => setSettings({ theme: "custom", customColor: e.target.value })}
                     className="w-6 h-6 rounded-full cursor-pointer border-0 bg-transparent p-0"

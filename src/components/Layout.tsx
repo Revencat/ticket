@@ -289,7 +289,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           initial={{ y: 90, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.1 }}
-          className="pointer-events-auto dock-safe flex items-end gap-0.5 px-1.5 pt-1 pb-0.5 rounded-[20px] bg-[#1a1b18] dark:bg-[#0f1113] border border-black/20 dark:border-white/5 shadow-[0_14px_40px_-12px_rgba(0,0,0,0.55)]"
+          className="pointer-events-auto dock-safe flex items-end gap-0.5 px-1.5 pt-1 pb-0.5 rounded-[22px] bg-side backdrop-blur-2xl border border-line shadow-[0_24px_60px_-18px_rgba(1,8,26,0.6)]"
         >
           {/* Izquierda del escaneo: en escritorio, 3 pestañas para equilibrar la dock */}
           {NAV.slice(0, 2).map((item) => (
@@ -349,7 +349,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <motion.span layoutId="dock-pill" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-xl bg-acc/15" />
               )}
               <span className="relative">
-                <MoreHorizontal size={20} className={cls("transition-colors", moreActive ? "text-acc" : "text-[#9aa196] group-hover:text-[#eceee9]")} strokeWidth={moreActive ? 2.3 : 2} />
+                <MoreHorizontal size={20} className={cls("transition-colors", moreActive ? "text-acc" : "text-mut group-hover:text-ink")} strokeWidth={moreActive ? 2.3 : 2} />
               </span>
             </motion.div>
           </button>
@@ -527,13 +527,13 @@ function DockItem({ to, label, icon: Icon, badge, badgeTone, hideOnMobile, hideO
           whileHover={{ y: -3 }}
           whileTap={{ scale: 0.88 }}
           transition={{ type: "spring", stiffness: 500, damping: 26 }}
-          className={cls("relative flex flex-col items-center justify-center w-[46px] sm:w-[60px] h-[44px] sm:h-[52px] rounded-xl cursor-pointer", !isActive && "hover:bg-white/10")}
+          className={cls("relative flex flex-col items-center justify-center w-[46px] sm:w-[60px] h-[44px] sm:h-[52px] rounded-xl cursor-pointer", !isActive && "hover:bg-ink/5 dark:hover:bg-white/10")}
         >
           {isActive && (
             <motion.span layoutId="dock-pill" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-xl bg-acc/15" />
           )}
           <span className="relative">
-            <Icon size={20} className={cls("transition-colors", isActive ? "text-acc" : "text-[#9aa196] group-hover:text-[#eceee9]")} strokeWidth={isActive ? 2.3 : 2} />
+            <Icon size={20} className={cls("transition-colors", isActive ? "text-acc" : "text-mut group-hover:text-ink")} strokeWidth={isActive ? 2.3 : 2} />
             {badge > 0 && (
               <motion.span
                 initial={{ scale: 0 }}
@@ -541,7 +541,7 @@ function DockItem({ to, label, icon: Icon, badge, badgeTone, hideOnMobile, hideO
                 transition={{ type: "spring", stiffness: 500, damping: 20 }}
                 className={cls(
                   "absolute -top-1.5 -right-2.5 min-w-[16px] h-[16px] px-1 rounded-full text-[9.5px] font-mono font-bold flex items-center justify-center leading-none",
-                  badgeTone === "warn" ? "bg-warn text-white" : "bg-[#eceee9] text-[#1a1b18]"
+                  badgeTone === "warn" ? "bg-warn text-[#0b132b]" : "bg-ink text-paper"
                 )}
               >
                 {badge > 99 ? "99+" : badge}
@@ -552,7 +552,7 @@ function DockItem({ to, label, icon: Icon, badge, badgeTone, hideOnMobile, hideO
           <span
             className={cls(
               "relative hidden md:block text-[9.5px] font-medium leading-none mt-0.5 transition-all duration-200",
-              isActive ? "text-acc opacity-100" : "text-[#8b928a] opacity-80"
+              isActive ? "text-acc opacity-100" : "text-mut opacity-80"
             )}
           >
             {label}
