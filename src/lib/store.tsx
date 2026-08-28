@@ -8,12 +8,12 @@ import { SPAIN_STORES } from "./storesDb";
 import { norm } from "./util";
 
 export const THEMES = [
-  { id: "bosque", name: "Bosque", color: "#0f9d63" },
-  { id: "petroleo", name: "Petróleo", color: "#0e7c90" },
-  { id: "ambar", name: "Ámbar", color: "#d97a08" },
-  { id: "frambuesa", name: "Frambuesa", color: "#d6336c" },
-  { id: "ciruela", name: "Ciruela", color: "#8746c4" },
-  { id: "grafito", name: "Grafito", color: "#5b6572" },
+  { id: "cian", name: "Cian", color: "#00b4d8" },
+  { id: "glaciar", name: "Glaciar", color: "#70d6ff" },
+  { id: "mentol", name: "Mentol", color: "#2dd4bf" },
+  { id: "abisal", name: "Abisal", color: "#3a86ff" },
+  { id: "lavanda", name: "Lavanda", color: "#8b9dff" },
+  { id: "espuma", name: "Espuma", color: "#90e0ef" },
   { id: "custom", name: "Propio", color: "" },
 ];
 
@@ -46,7 +46,8 @@ function hexToRgb(hex: string) {
 }
 function readableOn(hex: string) {
   const { r, g, b } = hexToRgb(hex);
-  return 0.299 * r + 0.587 * g + 0.114 * b > 155 ? "#171b19" : "#ffffff";
+  // texto oscuro sobre acentos luminosos (cian/menta) → contraste AAA
+  return 0.299 * r + 0.587 * g + 0.114 * b > 128 ? "#06222e" : "#f8f9fa";
 }
 
 interface AppCtx {
@@ -88,7 +89,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategoriesState] = useState<Category[]>(() => load(LS.cats, DEFAULT_CATEGORIES));
   const [stores, setStoresState] = useState<StoreEntry[]>(() => load(LS.stores, DEFAULT_STORES));
   const [settings, setSettingsState] = useState<Settings>(() =>
-    load(LS.settings, { theme: "bosque", customColor: "#0f9d63", dark: false, seeded: false, exportPhotos: true })
+    load(LS.settings, { theme: "cian", customColor: "#00b4d8", dark: true, seeded: false, exportPhotos: true })
   );
   const [account, setAccount] = useState<StoredAccount | null>(() => load<StoredAccount | null>(LS.account, null));
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
@@ -146,8 +147,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ── tema + modo oscuro → variables CSS ────────────────────────────────────
   const accent = useMemo(() => {
-    if (settings.theme === "custom") return settings.customColor || "#0f9d63";
-    return THEMES.find((t) => t.id === settings.theme)?.color || "#0f9d63";
+    if (settings.theme === "custom") return settings.customColor || "#00b4d8";
+    return THEMES.find((t) => t.id === settings.theme)?.color || "#00b4d8";
   }, [settings.theme, settings.customColor]);
 
   useEffect(() => {
@@ -157,7 +158,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     el.style.setProperty("--accent-soft", accent + "1f");
     el.style.setProperty("--accent-ink", readableOn(accent));
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", settings.dark ? "#121417" : "#f2f3f1");
+    if (meta) meta.setAttribute("content", settings.dark ? "#0b132b" : "#e9f2f7");
   }, [accent, settings.dark]);
 
   const setSettings = useCallback((p: Partial<Settings>) => {

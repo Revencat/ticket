@@ -3,6 +3,20 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle2, AlertTriangle, Info, Fuel, Shirt, UtensilsCrossed, Tag } from "lucide-react";
 import { cls } from "../lib/util";
 
+/* ── Onda marina al pulsar (ripple) ──────────────────────────────────────── */
+function spawnRipple(e: React.MouseEvent<HTMLElement>) {
+  const el = e.currentTarget;
+  const rect = el.getBoundingClientRect();
+  const d = Math.max(rect.width, rect.height) * 1.5;
+  const span = document.createElement("span");
+  span.className = "ripple-wave";
+  span.style.width = span.style.height = `${d}px`;
+  span.style.left = `${e.clientX - rect.left - d / 2}px`;
+  span.style.top = `${e.clientY - rect.top - d / 2}px`;
+  el.appendChild(span);
+  window.setTimeout(() => span.remove(), 700);
+}
+
 /* ── Botones ─────────────────────────────────────────────────────────────── */
 export function Button({
   children,
@@ -28,17 +42,20 @@ export function Button({
       type={type}
       title={title}
       disabled={disabled}
-      onClick={onClick}
+      onClick={(e) => {
+        spawnRipple(e);
+        onClick?.();
+      }}
       className={cls(
-        "inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-150 active:scale-[0.97] disabled:opacity-45 disabled:pointer-events-none cursor-pointer select-none",
+        "relative overflow-hidden inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-300 active:scale-[0.97] disabled:opacity-45 disabled:pointer-events-none cursor-pointer select-none",
         size === "sm" && "text-[13px] px-3 h-8",
         size === "md" && "text-sm px-4 h-10",
         size === "lg" && "text-[15px] px-5 h-12",
-        variant === "primary" && "bg-acc text-accink hover:brightness-110",
+        variant === "primary" && "bg-acc text-accink shadow-[0_8px_24px_-10px_var(--accent)] hover:brightness-110 hover:shadow-[0_12px_30px_-10px_var(--accent)]",
         variant === "outline" && "border border-line2 text-ink hover:bg-card2 bg-card",
         variant === "ghost" && "text-mut hover:text-ink hover:bg-card2",
-        variant === "soft" && "bg-acc/10 text-acc hover:bg-acc/18",
-        variant === "danger" && "bg-danger/10 text-danger hover:bg-danger/18",
+        variant === "soft" && "bg-acc/10 text-acc hover:bg-acc/20",
+        variant === "danger" && "bg-danger/10 text-danger hover:bg-danger/20",
         className
       )}
     >
@@ -64,9 +81,12 @@ export function IconBtn({
     <button
       type="button"
       title={title}
-      onClick={onClick}
+      onClick={(e) => {
+        spawnRipple(e);
+        onClick?.();
+      }}
       className={cls(
-        "inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors cursor-pointer",
+        "relative overflow-hidden inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors cursor-pointer",
         danger ? "text-mut hover:text-danger hover:bg-danger/10" : "text-mut hover:text-ink hover:bg-card2",
         className
       )}
@@ -118,11 +138,21 @@ export function CatIcon({ id, size = 16, className }: { id: string; size?: numbe
 export function Logo({ size = 30 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 96 96" aria-hidden>
-      <rect x="3" y="3" width="90" height="90" rx="19" fill="var(--ink)" />
-      <rect x="8" y="8" width="80" height="80" rx="14" fill="none" stroke="var(--accent)" strokeWidth="3" strokeDasharray="7 5" />
-      <path d="M30 24h36v44l-4.5-3.4-4.5 3.4-4.5-3.4-4.5 3.4-4.5-3.4-4.5 3.4-4.5-3.4L30 68z" fill="#fbfbf9" />
-      <path d="M36.5 34h23M36.5 41h23M36.5 48h12" stroke="#b9bcb2" strokeWidth="4" strokeLinecap="round" />
-      <rect x="36.5" y="54.5" width="23" height="7" rx="1.5" fill="var(--accent)" />
+      <defs>
+        <linearGradient id="tb-abyss" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#1c2541" />
+          <stop offset="1" stopColor="#0b132b" />
+        </linearGradient>
+        <linearGradient id="tb-ice" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#70d6ff" />
+          <stop offset="1" stopColor="#00b4d8" />
+        </linearGradient>
+      </defs>
+      <rect x="3" y="3" width="90" height="90" rx="21" fill="url(#tb-abyss)" />
+      <rect x="7" y="7" width="82" height="82" rx="18" fill="none" stroke="url(#tb-ice)" strokeWidth="3.5" strokeDasharray="7 5" />
+      <path d="M30 24h36v44l-4.5-3.4-4.5 3.4-4.5-3.4-4.5 3.4-4.5-3.4-4.5 3.4-4.5-3.4L30 68z" fill="#f8f9fa" />
+      <path d="M36.5 34h23M36.5 41h23M36.5 48h12" stroke="#9fb6cd" strokeWidth="4" strokeLinecap="round" />
+      <rect x="36.5" y="54.5" width="23" height="7" rx="1.5" fill="url(#tb-ice)" />
     </svg>
   );
 }

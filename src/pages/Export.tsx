@@ -19,7 +19,7 @@ export default function Export() {
   };
 
   const preview = useMemo(() => {
-    const sheets = [{ name: "Global", count: tickets.length, color: "#22282a", total: tickets.reduce((a, t) => a + t.total, 0) }];
+    const sheets = [{ name: "Global", count: tickets.length, color: "#1c2541", total: tickets.reduce((a, t) => a + t.total, 0) }];
     for (const c of categories) {
       if (c.id === "otros") continue;
       const list = tickets.filter((t) => t.category === c.id);

@@ -2,43 +2,46 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ── TicketBox · libro de cuentas moderno ─────────────────────────────────── */
+/* ── Oceanic & Arctic Fluid System ─────────────────────────────────────────
+   Profundidad marina + frescor ártico. Sin blancos puros ni tonos crema:
+   la lectura prolongada descansa sobre azules abisales y cianes helados. */
 :root {
-  --bg: #f1f2f0;
-  --card: #fbfbf9;
-  --card2: #f4f5f2;
-  --ink: #1a1b18;
-  --muted: #6b7268;
-  --line: #e1e2db;
-  --line2: #cfd1c6;
-  --accent: #e0452a;
-  --accent-soft: #e0452a1c;
-  --accent-ink: #ffffff;
-  --ok: #1f8a5b;
-  --warn: #b47d11;
-  --danger: #d63b47;
-  --photo-bg: #f6f6f2;
-  --ledger-line: rgba(26, 27, 24, 0.045);
-  --shadow-print: 3px 3px 0 0 rgba(26, 27, 24, 0.08);
+  --bg: #e9f2f7;
+  --card: rgba(255, 255, 255, 0.6);
+  --card2: rgba(206, 229, 240, 0.55);
+  --ink: #0b132b;
+  --muted: #46617c;
+  --line: rgba(11, 19, 43, 0.12);
+  --line2: rgba(11, 19, 43, 0.22);
+  --accent: #00b4d8;
+  --accent-soft: #00b4d821;
+  --accent-ink: #04222e;
+  --ok: #0e9f6e;
+  --warn: #b57a12;
+  --danger: #dc4b57;
+  --sidebar: rgba(255, 255, 255, 0.66);
+  --photo-bg: #f1f7fa;
+  --shadow-card: 0 20px 44px -22px rgba(23, 43, 77, 0.38);
+  --ease-fluid: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dark {
-  --bg: #16171a;
-  --card: #1d1f23;
-  --card2: #24272c;
-  --ink: #eceee9;
-  --muted: #99a196;
-  --line: #2b2e33;
-  --line2: #3c4046;
-  --accent: #e8502f;
-  --accent-soft: #e8502f24;
-  --accent-ink: #ffffff;
-  --ok: #3ec98d;
-  --warn: #e2b253;
-  --danger: #f07178;
-  --photo-bg: #202329;
-  --ledger-line: rgba(236, 238, 233, 0.035);
-  --shadow-print: 3px 3px 0 0 rgba(0, 0, 0, 0.35);
+  --bg: #0b132b;
+  --card: rgba(30, 41, 59, 0.55);
+  --card2: rgba(38, 54, 80, 0.6);
+  --ink: #f8f9fa;
+  --muted: #8ca3c3;
+  --line: rgba(255, 255, 255, 0.1);
+  --line2: rgba(255, 255, 255, 0.2);
+  --accent: #00b4d8;
+  --accent-soft: #00b4d826;
+  --accent-ink: #04222e;
+  --ok: #34d399;
+  --warn: #f5c044;
+  --danger: #fb7185;
+  --sidebar: rgba(11, 19, 43, 0.78);
+  --photo-bg: #0e1c3a;
+  --shadow-card: 0 24px 60px -24px rgba(1, 6, 20, 0.75);
 }
 
 @theme inline {
@@ -55,9 +58,17 @@
   --color-warn: var(--warn);
   --color-danger: var(--danger);
   --color-photobg: var(--photo-bg);
+  --color-side: var(--sidebar);
   --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Fragment Mono", ui-monospace, "SFMono-Regular", monospace;
+  /* curvas orgánicas tipo gota: todo redondeo de la app se vuelve más blando */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 1.75rem;
 }
 
 html,
@@ -71,19 +82,77 @@ body {
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
-  transition: background-color 0.25s ease, color 0.25s ease;
+  transition: background-color 0.35s var(--ease-fluid), color 0.35s var(--ease-fluid);
 }
 
-/* papel de contabilidad: renglones tenues + lavado superior del acento */
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ── Fondo ambiental: deriva oceánica lenta (20 s) ───────────────────────── */
 .bg-wash {
   background:
-    radial-gradient(900px 380px at 82% -120px, var(--accent-soft), transparent 70%),
-    repeating-linear-gradient(to bottom, transparent 0 27px, var(--ledger-line) 27px 28px),
-    var(--bg);
+    radial-gradient(1100px 520px at 85% -12%, rgba(0, 180, 216, 0.16), transparent 62%),
+    radial-gradient(900px 460px at -12% 108%, rgba(112, 214, 255, 0.14), transparent 60%),
+    linear-gradient(155deg, #e9f2f7 0%, #d8e9f3 48%, #cfe4ef 100%);
+  background-size: auto, auto, 220% 220%;
+  animation: ocean-drift 20s ease-in-out infinite alternate;
+}
+.dark .bg-wash {
+  background:
+    radial-gradient(1100px 520px at 85% -12%, rgba(0, 180, 216, 0.2), transparent 62%),
+    radial-gradient(900px 460px at -12% 108%, rgba(112, 214, 255, 0.11), transparent 60%),
+    linear-gradient(155deg, #0b132b 0%, #1c2541 46%, #123a52 100%);
+  background-size: auto, auto, 220% 220%;
+  animation: ocean-drift 20s ease-in-out infinite alternate;
+}
+@keyframes ocean-drift {
+  from {
+    background-position: 0 0, 0 0, 0% 0%;
+  }
+  to {
+    background-position: 0 0, 0 0, 100% 100%;
+  }
 }
 
+/* ── Vidrio: todas las superficies .bg-card llevan blur marino ───────────── */
+.bg-card {
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+
+/* sombra de profundidad marina (sustituye sombras duras) */
 .shadow-print {
-  box-shadow: var(--shadow-print);
+  box-shadow: var(--shadow-card);
+}
+
+/* transiciones fluidas globales: toda transición CSS existente usa la curva del mar */
+button,
+a,
+[role="switch"],
+input,
+select,
+textarea {
+  transition-timing-function: var(--ease-fluid);
+  transition-duration: 0.3s;
+}
+
+/* ── Onda marina al pulsar botones (ripple) ──────────────────────────────── */
+.ripple-wave {
+  position: absolute;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.16;
+  transform: scale(0);
+  animation: ripple 0.65s var(--ease-fluid) forwards;
+  pointer-events: none;
+}
+@keyframes ripple {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
 }
 
 /* área segura iOS para la dock */
@@ -129,7 +198,7 @@ body {
   }
 }
 .print-in {
-  animation: print-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: print-in 0.5s var(--ease-fluid) both;
 }
 
 ::-webkit-scrollbar {
@@ -139,6 +208,11 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--line2);
   border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
   border: 3px solid transparent;
   background-clip: content-box;
 }
@@ -163,7 +237,7 @@ input[type="color"]::-webkit-color-swatch-wrapper {
 }
 input[type="color"]::-webkit-color-swatch {
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 /* números de importe con cifras alineadas */
