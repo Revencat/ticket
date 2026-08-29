@@ -9,6 +9,7 @@
   --bg: #e9f2f7;
   --card: rgba(255, 255, 255, 0.6);
   --card2: rgba(206, 229, 240, 0.55);
+  --sheet: #f6fafd;
   --ink: #0b132b;
   --muted: #46617c;
   --line: rgba(11, 19, 43, 0.12);
@@ -29,6 +30,9 @@
   --bg: #0b132b;
   --card: rgba(30, 41, 59, 0.55);
   --card2: rgba(38, 54, 80, 0.6);
+  /* superficie sólida para paneles superpuestos (sheets y modales):
+     la translucidez del vidrio normal los vuelve ilegibles sobre el fondo */
+  --sheet: #141d36;
   --ink: #f8f9fa;
   --muted: #8ca3c3;
   --line: rgba(255, 255, 255, 0.1);
