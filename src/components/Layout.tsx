@@ -377,10 +377,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 120, opacity: 0 }}
               transition={{ type: "spring", stiffness: 380, damping: 34 }}
-              className="fixed bottom-0 inset-x-0 z-50 md:hidden pb-[calc(env(safe-area-inset-bottom,0px)+12px)]"
+              className="fixed bottom-0 inset-x-0 z-50 md:hidden px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]"
             >
-              <div className="mx-auto max-w-md px-4">
-                <div className="bg-sheet border border-line rounded-t-2xl shadow-2xl overflow-hidden">
+              <div className="mx-auto max-w-md">
+                <div className="bg-sheet border border-line rounded-[22px] shadow-[0_-12px_44px_rgba(1,8,26,0.55)] overflow-hidden">
                   <div className="flex justify-center pt-2.5 pb-1"><span className="w-10 h-1 rounded-full bg-line2" /></div>
                   <p className="px-5 pt-1 pb-2 text-[11px] font-mono uppercase tracking-[0.14em] text-mut">Más opciones</p>
                   <nav className="px-2 pb-3 grid grid-cols-3 gap-1.5">
@@ -408,7 +408,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   </nav>
                   <button
                     onClick={() => { setSettings({ dark: !settings.dark }); }}
-                    className="mx-2 mb-3 w-[calc(100%-16px)] flex items-center justify-between rounded-xl border border-line bg-card2/50 px-4 py-3 cursor-pointer hover:bg-card2 transition-colors"
+                    className="mx-3 mb-3 w-[calc(100%-24px)] flex items-center justify-between rounded-xl border border-line bg-card2/60 px-4 py-3 cursor-pointer hover:bg-card2 transition-colors"
                   >
                     <span className="flex items-center gap-2.5 text-[13px] font-medium text-ink">
                       {settings.dark ? <Sun size={17} className="text-acc" /> : <Moon size={17} className="text-acc" />}
