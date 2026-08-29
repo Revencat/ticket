@@ -62,6 +62,7 @@
   --color-warn: var(--warn);
   --color-danger: var(--danger);
   --color-photobg: var(--photo-bg);
+  --color-sheet: var(--sheet);
   --color-side: var(--sidebar);
   --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;

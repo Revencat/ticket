@@ -198,7 +198,7 @@ export function Modal({ open, onClose, children, wide }: { open: boolean; onClos
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-6 bg-black/45"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-6 bg-black/65 backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -209,7 +209,7 @@ export function Modal({ open, onClose, children, wide }: { open: boolean; onClos
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 18, opacity: 0, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 380, damping: 32 }}
-            className={cls("w-full bg-card border border-line rounded-xl shadow-2xl max-h-[88vh] overflow-auto", wide ? "max-w-4xl" : "max-w-lg")}
+            className={cls("w-full bg-sheet border border-line rounded-xl shadow-2xl max-h-[88vh] overflow-auto", wide ? "max-w-4xl" : "max-w-lg")}
           >
             {children}
           </motion.div>
