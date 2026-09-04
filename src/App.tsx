@@ -1,6 +1,6 @@
 import React, { Component, Suspense, useEffect, useRef, useState } from "react";
 import { HashRouter, Routes, Route, Navigate, useLocation, type Location } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { AppProvider } from "./lib/store";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
@@ -112,17 +112,30 @@ const PageFallback = (
 );
 
 /**
- * Shell de rutas con transición de página segura:
- * la ruta que se muestra (displayLoc) se «congela» durante la animación de
- * salida y solo se actualiza cuando la página vieja ha terminado de irse.
- * Así el árbol saliente nunca se re-renderiza con la ruta nueva (la causa del
- * pantallazo en blanco al salir de ciertas páginas).
+ * Shell de rutas con transición de página determinista.
+ *
+ * En lugar de confiar en AnimatePresence + onExitComplete (que puede quedarse
+ * colgado si la página saliente usa animaciones de layout, como las pestañas
+ * de inicio de sesión de Cuenta → contenido en blanco al navegar), la salida
+ * se anima con el propio `animate` del contenedor:
+ *
+ *   1. Al navegar, el contenedor se desvanece hacia arriba (stage "out").
+ *   2. Cuando esa animación termina (onAnimationComplete, que SIEMPRE dispara),
+ *      se intercambia la ruta mostrada y el contenedor nuevo entra (stage "in").
+ *
+ * La clave del contenedor es la ruta mostrada, nunca la de destino, así el
+ * árbol saliente jamás se re-renderiza con otra ruta ni se duplica.
  */
 function Shell() {
   const loc = useLocation();
   const [displayLoc, setDisplayLoc] = useState<Location>(loc);
+  const [stage, setStage] = useState<"in" | "out">("in");
   const locRef = useRef(loc);
   locRef.current = loc;
+
+  useEffect(() => {
+    if (stage === "in" && loc.pathname !== displayLoc.pathname) setStage("out");
+  }, [stage, loc.pathname, displayLoc.pathname]);
 
   useEffect(() => {
     sessionStorage.removeItem("tb-chunk-reload");
@@ -146,31 +159,34 @@ function Shell() {
   }, []);
 
   return (
-    <AnimatePresence mode="wait" onExitComplete={() => setDisplayLoc(locRef.current)}>
-      <motion.div
-        key={loc.pathname}
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        transition={{ duration: 0.2, ease: [0.25, 1, 0.4, 1] }}
-        className="max-w-[1140px] mx-auto px-4 sm:px-6 pt-6 pb-32"
-      >
-        <PageBoundary>
-          <Suspense fallback={PageFallback}>
-            <Routes location={displayLoc}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/tickets" element={<Tickets />} />
-              <Route path="/scan" element={<Scan />} />
-              <Route path="/garantias" element={<Warranties />} />
-              <Route path="/exportar" element={<Export />} />
-              <Route path="/cuenta" element={<Cuenta />} />
-              <Route path="/ajustes" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </PageBoundary>
-      </motion.div>
-    </AnimatePresence>
+    <motion.div
+      key={displayLoc.pathname}
+      initial={{ opacity: 0, y: 14 }}
+      animate={stage === "out" ? { opacity: 0, y: -8 } : { opacity: 1, y: 0 }}
+      transition={{ duration: 0.18, ease: [0.25, 1, 0.4, 1] }}
+      onAnimationComplete={() => {
+        if (stage === "out") {
+          setDisplayLoc(locRef.current);
+          setStage("in");
+        }
+      }}
+      className="max-w-[1140px] mx-auto px-4 sm:px-6 pt-6 pb-32"
+    >
+      <PageBoundary key={displayLoc.pathname}>
+        <Suspense fallback={PageFallback}>
+          <Routes location={displayLoc}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/tickets" element={<Tickets />} />
+            <Route path="/scan" element={<Scan />} />
+            <Route path="/garantias" element={<Warranties />} />
+            <Route path="/exportar" element={<Export />} />
+            <Route path="/cuenta" element={<Cuenta />} />
+            <Route path="/ajustes" element={<Settings />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </PageBoundary>
+    </motion.div>
   );
 }
 
