@@ -158,9 +158,9 @@ export default function Dashboard() {
         {tiles.map((t, i) => (
           <motion.div
             key={t.label}
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
+            transition={{ delay: i * 0.04, duration: 0.2 }}
             className="bg-card border border-line rounded-xl p-4 hover:shadow-print hover:-translate-y-0.5 transition-all"
           >
             <div className="flex items-center justify-between">
@@ -177,7 +177,7 @@ export default function Dashboard() {
                     className={cls("h-full rounded-full", budgetPct > 100 ? "bg-danger" : budgetPct > 80 ? "bg-warn" : "bg-acc")}
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.min(budgetPct, 100)}%` }}
-                    transition={{ duration: 0.7, ease: "easeOut", delay: 0.25 }}
+                    transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
                   />
                 </div>
                 <p className={cls("text-[11.5px] mt-1.5 font-mono tnum", budgetPct > 100 ? "text-danger font-semibold" : "text-mut")}>
@@ -201,7 +201,7 @@ export default function Dashboard() {
       {/* fila 1: ritmo + composición */}
       <div className="grid lg:grid-cols-5 gap-4">
         <motion.section
-          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.2 }}
           className="lg:col-span-3 bg-card border border-line rounded-xl p-5 hover:shadow-print transition-shadow"
         >
           <div className="flex items-start justify-between mb-1">
@@ -229,7 +229,7 @@ export default function Dashboard() {
         </motion.section>
 
         <motion.section
-          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12, duration: 0.2 }}
           className="lg:col-span-2 bg-card border border-line rounded-xl p-5 hover:shadow-print transition-shadow"
         >
           <div className="flex items-start justify-between">
@@ -245,7 +245,7 @@ export default function Dashboard() {
       {/* fila 2: top tiendas + actividad */}
       <div className="grid lg:grid-cols-5 gap-4">
         <motion.section
-          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16, duration: 0.2 }}
           className="lg:col-span-3 bg-card border border-line rounded-xl p-5 hover:shadow-print transition-shadow"
         >
           <div className="flex items-start justify-between mb-3">
@@ -269,7 +269,7 @@ export default function Dashboard() {
                       initial={{ width: 0 }}
                       whileInView={{ width: `${pct}%` }}
                       viewport={{ once: true }}
-                      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.08 + i * 0.05 }}
+                      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.06 + i * 0.04 }}
                       className="absolute inset-y-0 left-0 bg-acc/10 group-hover:bg-acc/16 transition-colors"
                     />
                     <span className="relative flex items-center gap-3 px-3.5 py-2.5">
@@ -292,7 +292,7 @@ export default function Dashboard() {
         </motion.section>
 
         <motion.section
-          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24 }}
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.2 }}
           className="lg:col-span-2 bg-card border border-line rounded-xl p-5 hover:shadow-print transition-shadow"
         >
           <div className="flex items-center justify-between mb-3">
@@ -308,10 +308,10 @@ export default function Dashboard() {
               return (
                 <motion.li
                   key={t.id}
-                  initial={{ opacity: 0, x: 10 }}
+                  initial={{ opacity: 0, x: 6 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.04 }}
+                  transition={{ delay: i * 0.03, duration: 0.2 }}
                 >
                   <button
                     onClick={() => setSelectedId(t.id)}
@@ -347,21 +347,25 @@ export default function Dashboard() {
 
       {/* garantías */}
       {stats.soon > 0 ? (
-        <Link to="/garantias" className="block bg-warn/8 border border-warn/25 rounded-xl px-5 py-4 hover:bg-warn/12 transition-colors">
-          <div className="flex items-center gap-3">
-            <AlertTriangle size={18} className="text-warn shrink-0" />
-            <p className="text-[13.5px]">
-              <strong className="text-warn font-semibold">{stats.soon} garantía{stats.soon > 1 ? "s" : ""} a punto de caducar</strong>
-              <span className="text-mut"> — revisa tus productos antes de 60 días.</span>
-            </p>
-            <ChevronRight size={16} className="text-warn ml-auto shrink-0" />
-          </div>
-        </Link>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.2 }}>
+          <Link to="/garantias" className="block bg-warn/8 border border-warn/25 rounded-xl px-5 py-4 hover:bg-warn/12 transition-colors">
+            <div className="flex items-center gap-3">
+              <AlertTriangle size={18} className="text-warn shrink-0" />
+              <p className="text-[13.5px]">
+                <strong className="text-warn font-semibold">{stats.soon} garantía{stats.soon > 1 ? "s" : ""} a punto de caducar</strong>
+                <span className="text-mut"> — revisa tus productos antes de 60 días.</span>
+              </p>
+              <ChevronRight size={16} className="text-warn ml-auto shrink-0" />
+            </div>
+          </Link>
+        </motion.div>
       ) : (
-        <div className="bg-ok/6 border border-ok/20 rounded-xl px-5 py-4 flex items-center gap-3">
-          <ShieldCheck size={18} className="text-ok shrink-0" />
-          <p className="text-[13.5px]"><strong className="text-ok font-semibold">Garantías bajo control</strong><span className="text-mut"> — ningún producto caduca en los próximos 60 días.</span></p>
-        </div>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.2 }}>
+          <div className="bg-ok/6 border border-ok/20 rounded-xl px-5 py-4 flex items-center gap-3">
+            <ShieldCheck size={18} className="text-ok shrink-0" />
+            <p className="text-[13.5px]"><strong className="text-ok font-semibold">Garantías bajo control</strong><span className="text-mut"> — ningún producto caduca en los próximos 60 días.</span></p>
+          </div>
+        </motion.div>
       )}
 
       <TicketDetail ticket={selected} onClose={() => setSelectedId(null)} />
@@ -476,10 +480,10 @@ function CompositionChart({ months, onCat }: { months: MonthRow[]; onCat: (id: s
                 {m.byCat.map((c) => (
                   <motion.div
                     key={c.id}
-                    initial={{ opacity: 0, scaleX: 0.6 }}
+                    initial={{ opacity: 0, scaleX: 0.7 }}
                     whileInView={{ opacity: 1, scaleX: 1 }}
                     viewport={{ once: true }}
-                    transition={{ duration: 0.4, delay: 0.1 + ri * 0.04 }}
+                    transition={{ duration: 0.3, delay: 0.08 + ri * 0.03 }}
                     onPointerEnter={(e) => { setActive(c.id); move(e, c, m.full); }}
                     onPointerMove={(e) => move(e, c, m.full)}
                     onPointerLeave={() => { setActive(null); setTip(null); }}

@@ -197,17 +197,17 @@ export default function Tickets() {
                 return (
                   <motion.button
                     key={t.id}
-                    initial={{ opacity: 0, y: 16 }}
+                    initial={{ opacity: 0, y: 8 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: "-30px" }}
-                    transition={{ delay: Math.min(i * 0.04, 0.3), type: "spring", stiffness: 300, damping: 26 }}
-                    whileHover={{ y: -4 }}
+                    transition={{ delay: Math.min(i * 0.03, 0.2), duration: 0.2 }}
+                    whileHover={{ y: -2 }}
                     onClick={() => setSelectedId(t.id)}
                     className="group bg-card border border-line rounded-xl overflow-hidden text-left hover:border-line2 hover:shadow-print transition-all cursor-pointer"
                   >
                     <div className="relative h-44 bg-photobg border-b border-line overflow-hidden flex items-center justify-center p-3">
                       {t.photo ? (
-                        <img src={t.photo} alt={`Ticket de ${t.store}`} loading="lazy" className="max-h-full max-w-full object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-[1.06]" />
+                        <img src={t.photo} alt={`Ticket de ${t.store}`} loading="lazy" className="max-h-full max-w-full object-contain drop-shadow-sm transition-transform duration-200 group-hover:scale-[1.04]" />
                       ) : (
                         <span className="text-mut/60"><ImageIcon size={30} /></span>
                       )}

@@ -1,4 +1,4 @@
-const CACHE = "ticketbox-v3";
+const CACHE = "ticketbox-v4";
 const CORE = ["/index.html", "/icon.svg", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
@@ -19,12 +19,10 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET" || !req.url.startsWith(self.location.origin)) return;
 
-  // Navegaciones: SIEMPRE se pide el HTML nuevo al servidor (cache: "no-cache"
-  // obliga a revalidar). Solo si no hay red se sirve la última copia guardada.
-  // Así la app nunca se queda clavada en una versión antigua.
+  // Navegaciones: network-first con fallback a caché
   if (req.mode === "navigate") {
     e.respondWith(
-      fetch(new Request(req, { cache: "no-cache" }))
+      fetch(req)
         .then((res) => {
           if (res.ok) {
             const copy = res.clone();
@@ -33,17 +31,31 @@ self.addEventListener("fetch", (e) => {
           return res;
         })
         .catch(() =>
-          caches
-            .match("/index.html")
-            .then((hit) => hit || caches.match("/"))
-            .then((hit2) => hit2 || new Response("", { status: 504, statusText: "Offline" }))
+          caches.match("/index.html").then((hit) => hit || new Response("", { status: 503, statusText: "Offline" }))
         )
     );
     return;
   }
 
-  // Recursos (JS, CSS, fuentes…): primero la red; si falla, la copia en caché.
-  // Los assets de Vite llevan hash en el nombre, así que nunca hay colisiones.
+  // Assets estáticos (JS, CSS, fuentes): cache-first con fallback a red
+  if (req.url.match(/\.(js|css|woff2|woff|ttf|svg|png|jpg|jpeg|webp)$/)) {
+    e.respondWith(
+      caches.match(req).then(
+        (hit) =>
+          hit ||
+          fetch(req).then((res) => {
+            if (res.ok) {
+              const copy = res.clone();
+              caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+            }
+            return res;
+          })
+      )
+    );
+    return;
+  }
+
+  // Todo lo demás: network-first
   e.respondWith(
     fetch(req)
       .then((res) => {
