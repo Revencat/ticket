@@ -195,37 +195,54 @@ function totalWeight(l: string): number {
 }
 
 function detectTotal(lines: string[]): number {
-  // 1) Votación ponderada entre las líneas candidatas a total
-  const votes = new Map<number, number>(); // importe → peso acumulado
+  // 1) Búsqueda directa de líneas con "TOTAL" + importe
+  const totalCandidates: { value: number; weight: number; lineIdx: number }[] = [];
   const nLines = lines.length;
+  
   lines.forEach((l, i) => {
-    const w0 = totalWeight(l);
-    if (w0 <= 0) return;
-    const amts = amountsIn(l);
-    let val = 0;
-    if (amts.length) {
-      val = parseAmount(amts[amts.length - 1]);
-    } else {
-      // Ticket en columnas: el importe suele ir en la línea siguiente
-      for (let j = i + 1; j <= Math.min(i + 2, nLines - 1); j++) {
-        if (TOTAL_BAD.test(norm(lines[j]))) continue;
-        const a2 = amountsIn(lines[j]);
-        if (a2.length) {
-          val = parseAmount(a2[0]);
-          break;
+    const n = norm(l);
+    // Buscar variaciones de "TOTAL" con alta prioridad
+    const hasTotal = /\btotal\b/i.test(l) || fuzzyIncludes(n.replace(/[^a-z]/g, ""), "total", 1);
+    const hasPagar = /\ba\s?pagar\b|\bdebe\b|\bimporte\s*total\b/i.test(l);
+    
+    if (hasTotal || hasPagar) {
+      const amts = amountsIn(l);
+      let val = 0;
+      
+      // Si la línea tiene importe, usarlo
+      if (amts.length) {
+        val = parseAmount(amts[amts.length - 1]);
+      } else {
+        // Buscar en las siguientes 2 líneas (tickets en columnas)
+        for (let j = i + 1; j <= Math.min(i + 2, nLines - 1); j++) {
+          if (TOTAL_BAD.test(norm(lines[j]))) continue;
+          const a2 = amountsIn(lines[j]);
+          if (a2.length) {
+            val = parseAmount(a2[0]);
+            break;
+          }
         }
       }
+      
+      if (val > 0 && val <= MAX_TOTAL) {
+        // Peso muy alto para líneas con "TOTAL"
+        let weight = 10;
+        if (hasPagar) weight += 5; // "TOTAL A PAGAR" es muy fiable
+        if (/€|eur/i.test(l)) weight += 2;
+        // Bonus por estar en el último tercio del ticket
+        if (i > nLines * 0.6) weight += 3;
+        totalCandidates.push({ value: val, weight, lineIdx: i });
+      }
     }
-    if (val <= 0 || val > MAX_TOTAL) return;
-    const w = w0 + (i / Math.max(nLines, 1)) * 1.5 + (amts.length ? 0.5 : 0);
-    votes.set(val, (votes.get(val) || 0) + w);
   });
-  if (votes.size) {
-    let best = 0, bestW = -1;
-    for (const [v, w] of votes) if (w > bestW) { bestW = w; best = v; }
-    return best;
+  
+  // Si encontramos candidatos con "TOTAL", devolver el de mayor peso
+  if (totalCandidates.length > 0) {
+    totalCandidates.sort((a, b) => b.weight - a.weight);
+    return totalCandidates[0].value;
   }
-  // 2) Plan B: el mayor importe del último tercio, descartando líneas contables
+  
+  // 2) Plan B: buscar el mayor importe del último tercio
   const tail = lines.slice(-Math.max(4, Math.ceil(nLines * 0.35)));
   let best = 0;
   for (const l of tail) {

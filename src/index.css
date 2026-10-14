@@ -6,46 +6,44 @@
    Profundidad marina + frescor ártico. Sin blancos puros ni tonos crema:
    la lectura prolongada descansa sobre azules abisales y cianes helados. */
 :root {
-  --bg: #e9f2f7;
-  --card: rgba(255, 255, 255, 0.6);
-  --card2: rgba(206, 229, 240, 0.55);
-  --sheet: #f6fafd;
-  --ink: #0b132b;
-  --muted: #46617c;
-  --line: rgba(11, 19, 43, 0.12);
-  --line2: rgba(11, 19, 43, 0.22);
-  --accent: #00b4d8;
-  --accent-soft: #00b4d821;
-  --accent-ink: #04222e;
-  --ok: #0e9f6e;
-  --warn: #b57a12;
-  --danger: #dc4b57;
-  --sidebar: rgba(255, 255, 255, 0.66);
-  --photo-bg: #f1f7fa;
-  --shadow-card: 0 20px 44px -22px rgba(23, 43, 77, 0.38);
-  --ease-fluid: cubic-bezier(0.16, 1, 0.3, 1);
+  --bg: #f5f7fa;
+  --card: #ffffff;
+  --card2: #f0f3f7;
+  --sheet: #ffffff;
+  --ink: #1a2332;
+  --muted: #5a6577;
+  --line: #e2e8f0;
+  --line2: #cbd5e1;
+  --accent: #0ea5e9;
+  --accent-soft: #0ea5e915;
+  --accent-ink: #ffffff;
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --sidebar: #ffffff;
+  --photo-bg: #f8fafc;
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --ease-fluid: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dark {
-  --bg: #0b132b;
-  --card: rgba(30, 41, 59, 0.55);
-  --card2: rgba(38, 54, 80, 0.6);
-  /* superficie sólida para paneles superpuestos (sheets y modales):
-     la translucidez del vidrio normal los vuelve ilegibles sobre el fondo */
-  --sheet: #141d36;
-  --ink: #f8f9fa;
-  --muted: #8ca3c3;
-  --line: rgba(255, 255, 255, 0.1);
-  --line2: rgba(255, 255, 255, 0.2);
-  --accent: #00b4d8;
-  --accent-soft: #00b4d826;
-  --accent-ink: #04222e;
-  --ok: #34d399;
-  --warn: #f5c044;
-  --danger: #fb7185;
-  --sidebar: rgba(11, 19, 43, 0.78);
-  --photo-bg: #0e1c3a;
-  --shadow-card: 0 24px 60px -24px rgba(1, 6, 20, 0.75);
+  --bg: #0f172a;
+  --card: #1e293b;
+  --card2: #334155;
+  --sheet: #1e293b;
+  --ink: #f1f5f9;
+  --muted: #94a3b8;
+  --line: #334155;
+  --line2: #475569;
+  --accent: #0ea5e9;
+  --accent-soft: #0ea5e920;
+  --accent-ink: #ffffff;
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --sidebar: #1e293b;
+  --photo-bg: #0f172a;
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
 }
 
 @theme inline {
@@ -95,68 +93,35 @@ body {
   color: var(--accent-ink);
 }
 
-/* ── Fondo ambiental: deriva oceánica lenta (20 s) ───────────────────────── */
+/* Fondo simple y limpio */
 .bg-wash {
-  background:
-    radial-gradient(1100px 520px at 85% -12%, rgba(0, 180, 216, 0.16), transparent 62%),
-    radial-gradient(900px 460px at -12% 108%, rgba(112, 214, 255, 0.14), transparent 60%),
-    linear-gradient(155deg, #e9f2f7 0%, #d8e9f3 48%, #cfe4ef 100%);
-  background-size: auto, auto, 220% 220%;
-  animation: ocean-drift 20s ease-in-out infinite alternate;
-}
-.dark .bg-wash {
-  background:
-    radial-gradient(1100px 520px at 85% -12%, rgba(0, 180, 216, 0.2), transparent 62%),
-    radial-gradient(900px 460px at -12% 108%, rgba(112, 214, 255, 0.11), transparent 60%),
-    linear-gradient(155deg, #0b132b 0%, #1c2541 46%, #123a52 100%);
-  background-size: auto, auto, 220% 220%;
-  animation: ocean-drift 20s ease-in-out infinite alternate;
-}
-@keyframes ocean-drift {
-  from {
-    background-position: 0 0, 0 0, 0% 0%;
-  }
-  to {
-    background-position: 0 0, 0 0, 100% 100%;
-  }
+  background: var(--bg);
 }
 
-/* ── Vidrio: solo elementos flotantes (header, dock, modales) ────────────── */
-/* Las tarjetas estáticas NO llevan blur (muy costoso en móvil) */
+/* Tarjetas sin efectos excesivos */
 .bg-card {
-  /* Sin blur por defecto para performance */
+  /* Sin blur, solo sombra sutil */
 }
 
-/* Solo aplicar blur a elementos flotantes */
-header.bg-card,
-nav.bg-card,
-[role="dialog"].bg-card,
-.modal.bg-card {
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
-}
-
-/* sombra de profundidad marina (sustituye sombras duras) */
+/* Sombra sutil para tarjetas */
 .shadow-print {
   box-shadow: var(--shadow-card);
 }
 
-/* transiciones fluidas globales: más rápidas para mejor UX */
+/* Transiciones simples y directas */
 button,
 a,
 [role="switch"],
 input,
 select,
 textarea {
-  transition-timing-function: var(--ease-fluid);
-  transition-duration: 0.15s;
+  transition: all 0.2s ease;
 }
 
-/* Focus visible mejorado para accesibilidad */
+/* Focus visible para accesibilidad */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 8px;
 }
 
 /* ── Onda marina al pulsar botones (ripple) ──────────────────────────────── */
