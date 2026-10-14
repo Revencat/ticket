@@ -190,7 +190,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <Logo size={28} />
           </motion.span>
           <span className="font-display font-extrabold text-[17px] tracking-[-0.02em] hidden sm:inline">
-            Ticket<span className="text-acc">Box</span>
+            Ticket<span className="text-acc">BOX</span>
           </span>
         </NavLink>
         <span className="w-px h-5 bg-line2 hidden sm:block" />

@@ -308,7 +308,7 @@ export default function Settings() {
             </div>
             <div>
               <p className="text-[13.5px] font-medium text-ink">Proyecto creado por <strong className="text-acc">Reven</strong></p>
-              <p className="text-[12px] text-mut">Versión 0.6 · En desarrollo activo</p>
+              <p className="text-[12px] text-mut">Versión 0.7 · En desarrollo activo</p>
             </div>
           </div>
           <div className="text-right">
