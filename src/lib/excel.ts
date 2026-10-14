@@ -1,5 +1,5 @@
 import ExcelJS from "exceljs";
-import { format, parseISO, subMonths } from "date-fns";
+import { format, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Category, Ticket } from "../types";
 import { fmtDate, toJpeg, todayISO, monthKey } from "./util";
@@ -138,19 +138,17 @@ export async function exportExcel(
 
       const conceptLines = Math.max(1, t.items.length);
       const hasPhoto = opts.includePhotos && photoThumb.has(t.id);
-      const fotoTarget = fotoRowById.get(t.id);
       r.height = hasPhoto ? 72 : Math.min(78, 15 + conceptLines * 12.5);
 
       if (hasPhoto) {
         // Miniatura anclada arriba a la izquierda de la celda "Foto".
         const id = wb.addImage({ base64: photoThumb.get(t.id)!.replace(/^image\/\w+;base64,/, ""), extension: "jpeg" });
-        ws.addImage(id, { tl: { col: 6, row: r.number - 1 } as never, ext: { width: 150, height: 64 }, editAs: "oneCell" });
+        ws.addImage(id, { tl: { col: 6, row: r.number - 1 } as never, ext: { width: 150, height: 62 }, editAs: "oneCell" });
         photos++;
-        // Enlace clicable con fórmula HYPERLINK: es la forma más fiable de
-        // salto interno en Excel/LibreOffice (los hipervínculos nativos de
-        // ExcelJS no siempre se resuelven). Al pulsarlo, salta a la foto a
+        // Enlace interno clicable abajo: al pulsarlo, Excel salta a la foto a
         // tamaño completo en la hoja "Fotos".
         const fotoCell = r.getCell("foto");
+        const fotoTarget = fotoRowById.get(t.id);
         if (fotoTarget) {
           fotoCell.value = {
             formula: `HYPERLINK("#'Fotos'!A${fotoTarget}","► VER FOTO GRANDE")`,
