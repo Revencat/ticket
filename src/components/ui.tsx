@@ -51,7 +51,7 @@ export function Button({
         size === "sm" && "text-[13px] px-3 h-8",
         size === "md" && "text-sm px-4 h-10",
         size === "lg" && "text-[15px] px-5 h-12",
-        variant === "primary" && "bg-acc text-accink shadow-[0_8px_24px_-10px_var(--accent)] hover:brightness-110 hover:shadow-[0_12px_30px_-10px_var(--accent)]",
+        variant === "primary" && "bg-acc text-accink hover:brightness-110",
         variant === "outline" && "border border-line2 text-ink hover:bg-card2 bg-card",
         variant === "ghost" && "text-mut hover:text-ink hover:bg-card2",
         variant === "soft" && "bg-acc/10 text-acc hover:bg-acc/20",

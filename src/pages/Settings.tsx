@@ -298,6 +298,24 @@ export default function Settings() {
           </div>
         </div>
       </Modal>
+
+      {/* Créditos del proyecto */}
+      <section className="bg-card border border-line rounded-xl p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-acc/10 flex items-center justify-center">
+              <span className="text-acc font-bold text-lg">R</span>
+            </div>
+            <div>
+              <p className="text-[13.5px] font-medium text-ink">Proyecto creado por <strong className="text-acc">Reven</strong></p>
+              <p className="text-[12px] text-mut">Versión 0.6 · En desarrollo activo</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[11px] text-mut font-mono">Build 2026.01</p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

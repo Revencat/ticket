@@ -49,16 +49,19 @@ function otsu(hist: Uint32Array, total: number): number {
 
 /* ── Detección: esquinas del ticket ─────────────────────────────────────── */
 
-/** Desenfoque 3×3 sobre escala de grises (funde el texto con el papel). */
+/** Desenfoque 5×5 sobre escala de grises (funde el texto con el papel). */
 function blurGray(gray: Uint8ClampedArray, w: number, h: number): Uint8ClampedArray {
   const out = new Uint8ClampedArray(w * h);
+  const kernelSize = 5;
+  const half = Math.floor(kernelSize / 2);
+  
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       let acc = 0, n = 0;
-      for (let dy = -1; dy <= 1; dy++) {
+      for (let dy = -half; dy <= half; dy++) {
         const yy = y + dy;
         if (yy < 0 || yy >= h) continue;
-        for (let dx = -1; dx <= 1; dx++) {
+        for (let dx = -half; dx <= half; dx++) {
           const xx = x + dx;
           if (xx < 0 || xx >= w) continue;
           acc += gray[yy * w + xx];
@@ -182,11 +185,13 @@ export async function detectReceiptCorners(src: string): Promise<Pt[] | null> {
   const gray = blurGray(gray0, aw, ah);
 
   // Máscara binaria: el papel del ticket es la zona clara.
+  // Usamos un umbral más bajo para capturar mejor los bordes del papel
   const t = otsu(hist, total);
+  const threshold = Math.max(t * 0.85, 100); // Umbral más permisivo
   const mask = new Uint8Array(total);
   let lightCount = 0;
   for (let j = 0; j < total; j++) {
-    if (gray[j] > t) {
+    if (gray[j] > threshold) {
       mask[j] = 1;
       lightCount++;
     }
@@ -196,10 +201,12 @@ export async function detectReceiptCorners(src: string): Promise<Pt[] | null> {
   if (frac > 0.94 || frac < 0.03) return null;
 
   // Componente conexa clara más grande + sus píxeles de contorno.
+  // Usamos 8-conectividad para mejor detección de bordes diagonales
   const seen = new Uint8Array(total);
   let bestArea = 0;
   let bestBoundary: Pt[] | null = null;
   const stack: number[] = [];
+  
   for (let start = 0; start < total; start++) {
     if (!mask[start] || seen[start]) continue;
     stack.length = 0;
@@ -207,35 +214,56 @@ export async function detectReceiptCorners(src: string): Promise<Pt[] | null> {
     seen[start] = 1;
     let area = 0;
     const boundary: Pt[] = [];
+    
     while (stack.length) {
       const idx = stack.pop()!;
       const x = idx % aw;
       const y = (idx / aw) | 0;
       area++;
+      
+      // Detectar bordes con 8-conectividad
       let isBorder = false;
-      if (x === 0 || y === 0 || x === aw - 1 || y === ah - 1) isBorder = true;
-      else {
-        if (!mask[idx - 1] || !mask[idx + 1] || !mask[idx - aw] || !mask[idx + aw]) isBorder = true;
+      if (x === 0 || y === 0 || x === aw - 1 || y === ah - 1) {
+        isBorder = true;
+      } else {
+        // Verificar los 8 vecinos
+        const neighbors = [
+          idx - 1, idx + 1, idx - aw, idx + aw,
+          idx - aw - 1, idx - aw + 1, idx + aw - 1, idx + aw + 1
+        ];
+        for (const nIdx of neighbors) {
+          if (nIdx >= 0 && nIdx < total && !mask[nIdx]) {
+            isBorder = true;
+            break;
+          }
+        }
       }
+      
       if (isBorder) boundary.push({ x, y });
-      const nb = [idx - 1, idx + 1, idx - aw, idx + aw];
+      
+      // 8-conectividad para el flood fill
+      const nb = [
+        idx - 1, idx + 1, idx - aw, idx + aw,
+        idx - aw - 1, idx - aw + 1, idx + aw - 1, idx + aw + 1
+      ];
       for (const nIdx of nb) {
         if (nIdx < 0 || nIdx >= total) continue;
         if (mask[nIdx] && !seen[nIdx]) {
-          // evita cruzar de un borde al otro en la misma fila
-          if (Math.abs((nIdx % aw) - x) > 1) continue;
           seen[nIdx] = 1;
           stack.push(nIdx);
         }
       }
     }
+    
     const areaFrac = area / total;
-    if (area > bestArea && areaFrac >= 0.1 && areaFrac <= 0.92) {
+    // Aceptamos componentes entre 5% y 95% del área total
+    if (area > bestArea && areaFrac >= 0.05 && areaFrac <= 0.95) {
       bestArea = area;
       bestBoundary = boundary;
     }
   }
-  if (!bestBoundary || bestBoundary.length < 8) return null;
+  
+  if (!bestBoundary || bestBoundary.length < 12) return null;
 
   // Envolvente convexa → rectángulo de área mínima → esquinas.
   const hull = convexHull(bestBoundary);
