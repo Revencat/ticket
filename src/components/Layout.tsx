@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+
+// Prefetch de rutas al hacer hover (mejora UX percibida)
+function prefetchRoute(path: string) {
+  const link = document.createElement("link");
+  link.rel = "prefetch";
+  link.href = path;
+  document.head.appendChild(link);
+}
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Receipt, ScanLine, ShieldCheck, FileSpreadsheet, Cloud, Settings as SettingsIcon,
@@ -189,10 +197,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <AnimatePresence mode="wait">
           <motion.h1
             key={title}
-            initial={{ opacity: 0, y: 7 }}
+            initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -7 }}
-            transition={{ duration: 0.16 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.1 }}
             className="font-display font-bold text-[15px] text-ink truncate tracking-[-0.01em]"
           >
             {title}
@@ -515,6 +523,7 @@ function DockItem({ to, label, icon: Icon, badge, badgeTone, hideOnMobile, hideO
       to={to}
       end={to === "/"}
       title={label}
+      onMouseEnter={() => prefetchRoute(to)}
       className={cls(
         "group relative flex-col items-center",
         hideOnMobile && "hidden md:flex",

@@ -1,13 +1,17 @@
-import React, { Component, Suspense, useEffect, useRef, useState } from "react";
+import React, { Component, Suspense, useEffect, useState, useRef } from "react";
 import { HashRouter, Routes, Route, Navigate, useLocation, type Location } from "react-router-dom";
 import { motion } from "framer-motion";
 import { AppProvider } from "./lib/store";
 import Layout from "./components/Layout";
-import Dashboard from "./pages/Dashboard";
-import Tickets from "./pages/Tickets";
-import Warranties from "./pages/Warranties";
-import Settings from "./pages/Settings";
-import Cuenta from "./pages/Cuenta";
+
+// Lazy load de todas las páginas pesadas
+const Dashboard = React.lazy(() => import("./pages/Dashboard"));
+const Tickets = React.lazy(() => import("./pages/Tickets"));
+const Scan = React.lazy(() => import("./pages/Scan"));
+const Warranties = React.lazy(() => import("./pages/Warranties"));
+const Export = React.lazy(() => import("./pages/Export"));
+const Cuenta = React.lazy(() => import("./pages/Cuenta"));
+const Settings = React.lazy(() => import("./pages/Settings"));
 
 /**
  * React.lazy con reintento: si un chunk perezoso falla al cargar
@@ -26,11 +30,6 @@ function lazyRetry<T extends React.ComponentType<unknown>>(factory: () => Promis
     })
   );
 }
-
-// Las páginas con dependencias pesadas (Tesseract, ExcelJS) se cargan bajo demanda.
-// Cuenta es pequeña y crítica: va en el bundle principal para no fallar jamás.
-const Scan = lazyRetry(() => import("./pages/Scan"));
-const Export = lazyRetry(() => import("./pages/Export"));
 
 const isChunkError = (e: unknown) => {
   const m = e instanceof Error ? e.message : String(e);
@@ -78,7 +77,7 @@ class PageBoundary extends Component<{ children: React.ReactNode }, { failed: bo
   }
 }
 
-/* ── Límite de errores global (cabecera, dock, provider): nunca más pantalla en blanco ── */
+/* ── Límite de errores global ────────────────────────────────────────────── */
 class RootBoundary extends Component<{ children: React.ReactNode }, { failed: boolean; detail: string }> {
   state = { failed: false, detail: "" };
   static getDerivedStateFromError(err: unknown) {
@@ -105,26 +104,18 @@ class RootBoundary extends Component<{ children: React.ReactNode }, { failed: bo
   }
 }
 
+/* ── Skeleton loader optimizado ──────────────────────────────────────────── */
 const PageFallback = (
   <div className="flex items-center justify-center py-24">
-    <div className="w-8 h-8 rounded-lg bg-acc/20 pulse-soft" />
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-10 h-10 rounded-xl bg-acc/20 animate-pulse" />
+      <div className="w-32 h-3 rounded bg-acc/10 animate-pulse" />
+    </div>
   </div>
 );
 
 /**
  * Shell de rutas con transición de página determinista.
- *
- * En lugar de confiar en AnimatePresence + onExitComplete (que puede quedarse
- * colgado si la página saliente usa animaciones de layout, como las pestañas
- * de inicio de sesión de Cuenta → contenido en blanco al navegar), la salida
- * se anima con el propio `animate` del contenedor:
- *
- *   1. Al navegar, el contenedor se desvanece hacia arriba (stage "out").
- *   2. Cuando esa animación termina (onAnimationComplete, que SIEMPRE dispara),
- *      se intercambia la ruta mostrada y el contenedor nuevo entra (stage "in").
- *
- * La clave del contenedor es la ruta mostrada, nunca la de destino, así el
- * árbol saliente jamás se re-renderiza con otra ruta ni se duplica.
  */
 function Shell() {
   const loc = useLocation();
@@ -143,7 +134,10 @@ function Shell() {
     const t = window.setTimeout(() => {
       import("./pages/Scan").catch(() => {});
       import("./pages/Export").catch(() => {});
-    }, 700);
+      import("./pages/Warranties").catch(() => {});
+      import("./pages/Cuenta").catch(() => {});
+      import("./pages/Settings").catch(() => {});
+    }, 500);
 
     const onRejection = (e: PromiseRejectionEvent) => {
       if (isChunkError(e.reason) && !sessionStorage.getItem("tb-chunk-reload")) {
@@ -161,9 +155,9 @@ function Shell() {
   return (
     <motion.div
       key={displayLoc.pathname}
-      initial={{ opacity: 0, y: 14 }}
-      animate={stage === "out" ? { opacity: 0, y: -8 } : { opacity: 1, y: 0 }}
-      transition={{ duration: 0.18, ease: [0.25, 1, 0.4, 1] }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={stage === "out" ? { opacity: 0, y: -4 } : { opacity: 1, y: 0 }}
+      transition={{ duration: 0.12, ease: [0.25, 1, 0.4, 1] }}
       onAnimationComplete={() => {
         if (stage === "out") {
           setDisplayLoc(locRef.current);

@@ -134,24 +134,29 @@ export default function CropEditor({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      <div className="flex items-center justify-between px-4 pt-4 pb-2 bg-gradient-to-b from-black/70 to-transparent">
-        <button
-          onClick={onSkip}
-          className="w-10 h-10 rounded-full bg-white/12 text-white flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer"
-          aria-label="Cancelar"
-          title="Usar la foto completa"
-        >
-          <X size={20} />
-        </button>
-        <div className="text-center">
-          <p className="text-white/90 text-[13.5px] font-medium">Ajusta las esquinas del ticket</p>
-          <p className="text-white/50 text-[11.5px] mt-0.5">arrastra cada punto hasta el borde del papel</p>
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        className="fixed inset-0 z-50 bg-black flex flex-col"
+      >
+        <div className="flex items-center justify-between px-4 pt-4 pb-2 bg-gradient-to-b from-black/70 to-transparent">
+          <button
+            onClick={onSkip}
+            className="w-10 h-10 rounded-full bg-white/12 text-white flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer"
+            aria-label="Cancelar"
+            title="Usar la foto completa"
+          >
+            <X size={20} />
+          </button>
+          <div className="text-center">
+            <p className="text-white/90 text-[13.5px] font-medium">Ajusta las esquinas del ticket</p>
+            <p className="text-white/50 text-[11.5px] mt-0.5">arrastra cada punto hasta el borde del papel</p>
+          </div>
+          <span className="w-10" />
         </div>
-        <span className="w-10" />
-      </div>
-
       <div
         ref={boxRef}
         className="relative flex-1 overflow-hidden touch-none select-none"
@@ -220,6 +225,6 @@ export default function CropEditor({
           {busy ? "Recortando…" : "Recortar y leer"}
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 }
