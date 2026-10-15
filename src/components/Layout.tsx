@@ -190,7 +190,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <Logo size={28} />
           </motion.span>
           <span className="font-display font-extrabold text-[17px] tracking-[-0.02em] hidden sm:inline">
-            Ticket<span className="text-acc">Box</span>
+            Ticket<span className="text-acc">BOX</span>
           </span>
         </NavLink>
         <span className="w-px h-5 bg-line2 hidden sm:block" />
@@ -354,7 +354,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               )}
             >
               {moreActive && (
-                <motion.span layoutId="dock-pill" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-xl bg-acc/15" />
+                <motion.span layoutId="dock-pill-more" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-xl bg-acc/15" />
               )}
               <span className="relative">
                 <MoreHorizontal size={20} className={cls("transition-colors", moreActive ? "text-acc" : "text-mut group-hover:text-ink")} strokeWidth={moreActive ? 2.3 : 2} />
@@ -539,7 +539,7 @@ function DockItem({ to, label, icon: Icon, badge, badgeTone, hideOnMobile, hideO
           className={cls("relative flex flex-col items-center justify-center w-[46px] sm:w-[60px] h-[44px] sm:h-[52px] rounded-xl cursor-pointer", !isActive && "hover:bg-ink/5 dark:hover:bg-white/10")}
         >
           {isActive && (
-            <motion.span layoutId="dock-pill" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-xl bg-acc/15" />
+            <motion.span layoutId={`dock-pill-${to}`} transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-xl bg-acc/15" />
           )}
           <span className="relative">
             <Icon size={20} className={cls("transition-colors", isActive ? "text-acc" : "text-mut group-hover:text-ink")} strokeWidth={isActive ? 2.3 : 2} />
