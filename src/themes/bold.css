@@ -65,20 +65,55 @@
   box-shadow: var(--shadow-card);
 }
 
-[data-theme="bold"] button,
-[data-theme="bold"] a {
+/* Solo aplicar estilo brutalista a botones principales, no a iconos o enlaces de navegación */
+[data-theme="bold"] button:not(.icon-btn):not([role="switch"]):not(.nav-link),
+[data-theme="bold"] a.btn-primary {
   transition: all 0.1s var(--ease-fluid);
   border: 2px solid var(--line);
   border-radius: 0;
   font-weight: 700;
 }
 
-[data-theme="bold"] button:hover {
+[data-theme="bold"] button:not(.icon-btn):not([role="switch"]):not(.nav-link):hover,
+[data-theme="bold"] a.btn-primary:hover {
   transform: translate(-2px, -2px);
   box-shadow: 6px 6px 0 0 var(--line);
 }
 
-[data-theme="bold"] button:active {
+[data-theme="bold"] button:not(.icon-btn):not([role="switch"]):not(.nav-link):active,
+[data-theme="bold"] a.btn-primary:active {
   transform: translate(2px, 2px);
   box-shadow: 0 0 0 0 var(--line);
+}
+
+/* Los iconos y elementos de navegación no tienen bordes */
+[data-theme="bold"] .icon-btn,
+[data-theme="bold"] [role="switch"],
+[data-theme="bold"] .nav-link,
+[data-theme="bold"] svg {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Tooltips y elementos flotantes no tienen bordes brutales */
+[data-theme="bold"] [role="tooltip"],
+[data-theme="bold"] .tooltip,
+[data-theme="bold"] [data-radix-popper-content-wrapper] {
+  border: 1px solid var(--line) !important;
+  box-shadow: 2px 2px 0 0 var(--line) !important;
+  background: var(--card) !important;
+}
+
+/* Los elementos de gráficos (barras, sectores) no tienen bordes */
+[data-theme="bold"] .recharts-surface,
+[data-theme="bold"] .recharts-bar,
+[data-theme="bold"] .recharts-pie {
+  border: none !important;
+}
+
+/* Los dots de categorías no tienen bordes */
+[data-theme="bold"] .w-1\.5,
+[data-theme="bold"] .w-2\.5 {
+  border: none !important;
+  box-shadow: none !important;
 }

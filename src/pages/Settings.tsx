@@ -11,6 +11,10 @@ export default function Settings() {
   const [confirmWipe, setConfirmWipe] = useState(false);
 
   const usedCategories = new Set(tickets.map((t) => t.category));
+  
+  // Detectar si es móvil
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+  const version = isMobile ? "0.3" : "0.7";
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
@@ -382,7 +386,9 @@ export default function Settings() {
             </div>
             <div>
               <p className="text-[13.5px] font-medium text-ink">Proyecto creado por <strong className="text-acc">Reven</strong></p>
-              <p className="text-[12px] text-mut">Versión 0.7 · En desarrollo activo</p>
+              <p className="text-[12px] text-mut">
+                Versión {version} · {isMobile ? "Early mobile version" : "En desarrollo activo"}
+              </p>
             </div>
           </div>
           <div className="text-right">
