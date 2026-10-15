@@ -136,7 +136,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-4">
       {/* KPIs */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
         {tiles.map((t, i) => (
           <motion.div
             key={t.label}
