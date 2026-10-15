@@ -185,8 +185,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   // Si el tema es Bold, usar la navegación lateral
   if (isBoldTheme) {
+    const navItemsWithBadges = NAV.map((item) => ({
+      ...item,
+      badge: item.to === "/garantias" ? warrantyAlerts : item.to === "/tickets" ? tickets.length : 0,
+      badgeTone: item.to === "/garantias" ? "warn" as const : "mut" as const,
+    }));
+
     return (
-      <SidebarNavigation navItems={NAV}>
+      <SidebarNavigation
+        navItems={navItemsWithBadges}
+        onOpenPalette={() => setPalette(true)}
+        onOpenQR={() => setQrOpen(true)}
+      >
         <div className="max-w-[1140px] mx-auto px-4 sm:px-6 pt-6 pb-32">
           {children}
         </div>
