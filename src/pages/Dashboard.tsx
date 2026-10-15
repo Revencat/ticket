@@ -5,7 +5,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 
 import { format, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import {
-  ScanLine, Wallet, Receipt as ReceiptIcon, Percent, ShieldCheck, ChevronRight, AlertTriangle,
+  ScanLine, Wallet, Receipt as ReceiptIcon, Percent, ChevronRight,
   Store as StoreIcon, ArrowUpRight, TrendingUp, TrendingDown, Layers, Target, PiggyBank, Flame,
 } from "lucide-react";
 import { useApp } from "../lib/store";
@@ -73,20 +73,8 @@ export default function Dashboard() {
       .sort((a, b) => b.total - a.total)
       .slice(0, 6);
 
-    // garantías
-    let active = 0, soon = 0;
-    for (const t of tickets)
-      for (const it of t.items) {
-        if (!it.warrantyMonths) continue;
-        const end = new Date(t.date + "T00:00:00");
-        end.setMonth(end.getMonth() + it.warrantyMonths);
-        const days = (end.getTime() - Date.now()) / 86400000;
-        if (days >= 0) active++;
-        if (days >= 0 && days < 60) soon++;
-      }
-
     const recent = [...tickets].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt).slice(0, 6);
-    return { months, cur, prev, delta, avg, topStores, active, soon, recent };
+    return { months, cur, prev, delta, avg, topStores, recent };
   }, [tickets, categories]);
 
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
@@ -143,12 +131,6 @@ export default function Dashboard() {
           label: "Ticket medio", num: stats.cur.count ? stats.cur.total / stats.cur.count : 0, fmt: fmtEUR, icon: Percent,
           extra: <span className="text-[12px] text-mut">en el mes en curso</span>,
         },
-    {
-      label: "Garantías activas", num: stats.active, icon: ShieldCheck,
-      extra: stats.soon > 0
-        ? <span className="text-[12px] font-mono font-semibold text-warn">{stats.soon} caducan pronto</span>
-        : <span className="text-[12px] text-mut">todo en vigor</span>,
-    },
   ];
 
   return (
@@ -344,29 +326,6 @@ export default function Dashboard() {
           )}
         </motion.section>
       </div>
-
-      {/* garantías */}
-      {stats.soon > 0 ? (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.2 }}>
-          <Link to="/garantias" className="block bg-warn/8 border border-warn/25 rounded-xl px-5 py-4 hover:bg-warn/12 transition-colors">
-            <div className="flex items-center gap-3">
-              <AlertTriangle size={18} className="text-warn shrink-0" />
-              <p className="text-[13.5px]">
-                <strong className="text-warn font-semibold">{stats.soon} garantía{stats.soon > 1 ? "s" : ""} a punto de caducar</strong>
-                <span className="text-mut"> — revisa tus productos antes de 60 días.</span>
-              </p>
-              <ChevronRight size={16} className="text-warn ml-auto shrink-0" />
-            </div>
-          </Link>
-        </motion.div>
-      ) : (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.2 }}>
-          <div className="bg-ok/6 border border-ok/20 rounded-xl px-5 py-4 flex items-center gap-3">
-            <ShieldCheck size={18} className="text-ok shrink-0" />
-            <p className="text-[13.5px]"><strong className="text-ok font-semibold">Garantías bajo control</strong><span className="text-mut"> — ningún producto caduca en los próximos 60 días.</span></p>
-          </div>
-        </motion.div>
-      )}
 
       <TicketDetail ticket={selected} onClose={() => setSelectedId(null)} />
     </div>
