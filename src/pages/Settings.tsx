@@ -61,38 +61,76 @@ export default function Settings() {
           <Toggle on={settings.dark} onChange={(v) => setSettings({ dark: v })} label="Modo oscuro" />
         </div>
 
-        <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
-          <div className="flex items-center gap-3">
+        <div className="mt-4 border-t border-line pt-4">
+          <div className="flex items-center gap-3 mb-3">
             <div className="w-[17px] h-[17px] rounded bg-acc flex items-center justify-center">
-              <span className="text-white text-[10px] font-bold">M</span>
+              <span className="text-white text-[10px] font-bold">★</span>
             </div>
             <div>
               <p className="text-[13.5px] font-medium">Estilo visual</p>
-              <p className="text-[12px] text-mut">Minimalista profesional</p>
+              <p className="text-[12px] text-mut">Elige el diseño que más te guste</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setSettings({ visualStyle: "oceanic" })}
               className={cls(
-                "px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all",
+                "px-3 py-2.5 rounded-lg text-[12px] font-medium transition-all text-left",
                 settings.visualStyle === "oceanic"
                   ? "bg-acc text-accink"
-                  : "bg-card2 text-mut hover:text-ink"
+                  : "bg-card2 text-mut hover:text-ink hover:bg-card"
               )}
             >
-              Oceánico
+              <div className="font-semibold">Oceánico</div>
+              <div className="text-[10px] opacity-80 mt-0.5">Gradientes y efectos</div>
             </button>
             <button
               onClick={() => setSettings({ visualStyle: "minimal" })}
               className={cls(
-                "px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all",
-                settings.visualStyle === "minimal" || !settings.visualStyle
+                "px-3 py-2.5 rounded-lg text-[12px] font-medium transition-all text-left",
+                settings.visualStyle === "minimal"
                   ? "bg-acc text-accink"
-                  : "bg-card2 text-mut hover:text-ink"
+                  : "bg-card2 text-mut hover:text-ink hover:bg-card"
               )}
             >
-              Minimalista
+              <div className="font-semibold">Minimal</div>
+              <div className="text-[10px] opacity-80 mt-0.5">Apple-style, limpio</div>
+            </button>
+            <button
+              onClick={() => setSettings({ visualStyle: "glass" })}
+              className={cls(
+                "px-3 py-2.5 rounded-lg text-[12px] font-medium transition-all text-left",
+                settings.visualStyle === "glass"
+                  ? "bg-acc text-accink"
+                  : "bg-card2 text-mut hover:text-ink hover:bg-card"
+              )}
+            >
+              <div className="font-semibold">Glass</div>
+              <div className="text-[10px] opacity-80 mt-0.5">Vision Pro, cristal</div>
+            </button>
+            <button
+              onClick={() => setSettings({ visualStyle: "neumorph" })}
+              className={cls(
+                "px-3 py-2.5 rounded-lg text-[12px] font-medium transition-all text-left",
+                settings.visualStyle === "neumorph"
+                  ? "bg-acc text-accink"
+                  : "bg-card2 text-mut hover:text-ink hover:bg-card"
+              )}
+            >
+              <div className="font-semibold">Neumorph</div>
+              <div className="text-[10px] opacity-80 mt-0.5">Soft UI, táctil</div>
+            </button>
+            <button
+              onClick={() => setSettings({ visualStyle: "bold" })}
+              className={cls(
+                "px-3 py-2.5 rounded-lg text-[12px] font-medium transition-all text-left col-span-2",
+                settings.visualStyle === "bold"
+                  ? "bg-acc text-accink"
+                  : "bg-card2 text-mut hover:text-ink hover:bg-card"
+              )}
+            >
+              <div className="font-semibold">Bold</div>
+              <div className="text-[10px] opacity-80 mt-0.5">Brutalismo, alto contraste</div>
             </button>
           </div>
         </div>

@@ -1,0 +1,84 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   TEMA 4: BOLD (Brutalismo suave, High Contrast)
+   Tipografía fuerte, alto contraste, bordes marcados
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="bold"] {
+  --bg: #ffffff;
+  --card: #ffffff;
+  --card2: #f3f4f6;
+  --sheet: #ffffff;
+  --ink: #000000;
+  --muted: #6b7280;
+  --line: #000000;
+  --line2: #374151;
+  --accent: #ff3e00;
+  --accent-soft: rgba(255, 62, 0, 0.1);
+  --accent-ink: #ffffff;
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --sidebar: #f9fafb;
+  --photo-bg: #f3f4f6;
+  --shadow-card: 4px 4px 0 0 #000000;
+  --ease-fluid: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.dark[data-theme="bold"] {
+  --bg: #000000;
+  --card: #000000;
+  --card2: #1f2937;
+  --sheet: #000000;
+  --ink: #ffffff;
+  --muted: #9ca3af;
+  --line: #ffffff;
+  --line2: #d1d5db;
+  --accent: #ff3e00;
+  --accent-soft: rgba(255, 62, 0, 0.2);
+  --accent-ink: #ffffff;
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --sidebar: #111827;
+  --photo-bg: #1f2937;
+  --shadow-card: 4px 4px 0 0 #ffffff;
+}
+
+[data-theme="bold"] body {
+  background: var(--bg);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+[data-theme="bold"] .bg-wash {
+  background: var(--bg);
+}
+
+[data-theme="bold"] .bg-card {
+  background: var(--card);
+  border: 2px solid var(--line);
+  box-shadow: var(--shadow-card);
+  border-radius: 0;
+}
+
+[data-theme="bold"] .shadow-print {
+  box-shadow: var(--shadow-card);
+}
+
+[data-theme="bold"] button,
+[data-theme="bold"] a {
+  transition: all 0.1s var(--ease-fluid);
+  border: 2px solid var(--line);
+  border-radius: 0;
+  font-weight: 700;
+}
+
+[data-theme="bold"] button:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 0 var(--line);
+}
+
+[data-theme="bold"] button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 0 var(--line);
+}
