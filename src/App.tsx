@@ -8,7 +8,6 @@ import Layout from "./components/Layout";
 const Dashboard = React.lazy(() => import("./pages/Dashboard"));
 const Tickets = React.lazy(() => import("./pages/Tickets"));
 const Scan = React.lazy(() => import("./pages/Scan"));
-const Warranties = React.lazy(() => import("./pages/Warranties"));
 const Export = React.lazy(() => import("./pages/Export"));
 const Cuenta = React.lazy(() => import("./pages/Cuenta"));
 const Settings = React.lazy(() => import("./pages/Settings"));
@@ -134,7 +133,6 @@ function Shell() {
     const t = window.setTimeout(() => {
       import("./pages/Scan").catch(() => {});
       import("./pages/Export").catch(() => {});
-      import("./pages/Warranties").catch(() => {});
       import("./pages/Cuenta").catch(() => {});
       import("./pages/Settings").catch(() => {});
     }, 500);
@@ -172,7 +170,6 @@ function Shell() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/tickets" element={<Tickets />} />
             <Route path="/scan" element={<Scan />} />
-            <Route path="/garantias" element={<Warranties />} />
             <Route path="/exportar" element={<Export />} />
             <Route path="/cuenta" element={<Cuenta />} />
             <Route path="/ajustes" element={<Settings />} />
