@@ -17,6 +17,7 @@ import { useApp } from "../lib/store";
 import { cls, norm, timeAgo } from "../lib/util";
 import { setPending } from "../lib/pending";
 import { Logo, ToastHost, Kbd, Modal } from "./ui";
+import SidebarNavigation from "./SidebarNavigation";
 
 interface BIPEvent extends Event {
   prompt: () => Promise<void>;
@@ -180,6 +181,29 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const onScan = loc.pathname === "/scan";
   // En móvil, el botón «Más» se ilumina cuando la ruta actual vive dentro de su panel
   const moreActive = ["/exportar", "/cuenta", "/ajustes"].includes(loc.pathname);
+  const isBoldTheme = settings.visualStyle === "bold";
+
+  // Si el tema es Bold, usar la navegación lateral
+  if (isBoldTheme) {
+    const navItemsWithBadges = NAV.map((item) => ({
+      ...item,
+      badge: item.to === "/garantias" ? warrantyAlerts : item.to === "/tickets" ? tickets.length : 0,
+      badgeTone: item.to === "/garantias" ? "warn" as const : "mut" as const,
+    }));
+
+    return (
+      <SidebarNavigation
+        navItems={navItemsWithBadges}
+        onOpenPalette={() => setPalette(true)}
+        onOpenQR={() => setQrOpen(true)}
+      >
+        <div className="max-w-[1140px] mx-auto px-4 sm:px-6 pt-6 pb-32">
+          {children}
+        </div>
+        <ToastHost toasts={toasts} dismiss={dismissToast} />
+      </SidebarNavigation>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-wash">

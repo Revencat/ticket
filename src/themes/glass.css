@@ -1,0 +1,76 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   TEMA 2: GLASS (Vision Pro style, Glassmorphism suave)
+   Efectos de vidrio, transparencias, blur, profundidad
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="glass"] {
+  --bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --card: rgba(255, 255, 255, 0.7);
+  --card2: rgba(255, 255, 255, 0.5);
+  --sheet: rgba(255, 255, 255, 0.85);
+  --ink: #1a202c;
+  --muted: #4a5568;
+  --line: rgba(255, 255, 255, 0.3);
+  --line2: rgba(255, 255, 255, 0.5);
+  --accent: #667eea;
+  --accent-soft: rgba(102, 126, 234, 0.2);
+  --accent-ink: #ffffff;
+  --ok: #48bb78;
+  --warn: #ed8936;
+  --danger: #f56565;
+  --sidebar: rgba(255, 255, 255, 0.6);
+  --photo-bg: rgba(255, 255, 255, 0.3);
+  --shadow-card: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  --ease-fluid: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dark[data-theme="glass"] {
+  --bg: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  --card: rgba(30, 41, 59, 0.6);
+  --card2: rgba(51, 65, 85, 0.5);
+  --sheet: rgba(30, 41, 59, 0.8);
+  --ink: #f1f5f9;
+  --muted: #94a3b8;
+  --line: rgba(255, 255, 255, 0.1);
+  --line2: rgba(255, 255, 255, 0.2);
+  --accent: #60a5fa;
+  --accent-soft: rgba(96, 165, 250, 0.2);
+  --accent-ink: #ffffff;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --sidebar: rgba(30, 41, 59, 0.7);
+  --photo-bg: rgba(30, 41, 59, 0.4);
+  --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="glass"] body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+[data-theme="glass"] .bg-wash {
+  background: var(--bg);
+}
+
+[data-theme="glass"] .bg-card {
+  background: var(--card);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card);
+}
+
+[data-theme="glass"] .shadow-print {
+  box-shadow: var(--shadow-card);
+}
+
+[data-theme="glass"] button,
+[data-theme="glass"] a {
+  transition: all 0.3s var(--ease-fluid);
+}
+
+[data-theme="glass"] button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.5);
+}

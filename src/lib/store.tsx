@@ -89,7 +89,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategoriesState] = useState<Category[]>(() => load(LS.cats, DEFAULT_CATEGORIES));
   const [stores, setStoresState] = useState<StoreEntry[]>(() => load(LS.stores, DEFAULT_STORES));
   const [settings, setSettingsState] = useState<Settings>(() =>
-    load(LS.settings, { theme: "cian", customColor: "#00b4d8", dark: true, seeded: false, exportPhotos: true, visualStyle: "minimal" })
+    load(LS.settings, { theme: "cian", customColor: "#00b4d8", dark: true, seeded: false, exportPhotos: true, visualStyle: "oceanic" })
   );
   const [account, setAccount] = useState<StoredAccount | null>(() => load<StoredAccount | null>(LS.account, null));
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
