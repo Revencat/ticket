@@ -49,26 +49,30 @@ function otsu(hist: Uint32Array, total: number): number {
 
 /* ── Detección: esquinas del ticket ─────────────────────────────────────── */
 
-/** Desenfoque 5×5 sobre escala de grises (funde el texto con el papel). */
-function blurGray(gray: Uint8ClampedArray, w: number, h: number): Uint8ClampedArray {
+/** Gaussian blur 5×5 profesional (kernel estándar). */
+function gaussianBlur5x5(gray: Uint8ClampedArray, w: number, h: number): Uint8ClampedArray {
   const out = new Uint8ClampedArray(w * h);
-  const kernelSize = 5;
-  const half = Math.floor(kernelSize / 2);
+  // Kernel Gaussian 5x5 estándar (sigma ≈ 1.4)
+  const kernel = [
+    [1, 4, 6, 4, 1],
+    [4, 16, 24, 16, 4],
+    [6, 24, 36, 24, 6],
+    [4, 16, 24, 16, 4],
+    [1, 4, 6, 4, 1]
+  ];
+  const kernelSum = 256;
   
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      let acc = 0, n = 0;
-      for (let dy = -half; dy <= half; dy++) {
-        const yy = y + dy;
-        if (yy < 0 || yy >= h) continue;
-        for (let dx = -half; dx <= half; dx++) {
-          const xx = x + dx;
-          if (xx < 0 || xx >= w) continue;
-          acc += gray[yy * w + xx];
-          n++;
+      let acc = 0;
+      for (let ky = -2; ky <= 2; ky++) {
+        const yy = Math.min(h - 1, Math.max(0, y + ky));
+        for (let kx = -2; kx <= 2; kx++) {
+          const xx = Math.min(w - 1, Math.max(0, x + kx));
+          acc += gray[yy * w + xx] * kernel[ky + 2][kx + 2];
         }
       }
-      out[y * w + x] = acc / n;
+      out[y * w + x] = acc / kernelSum;
     }
   }
   return out;
@@ -182,7 +186,7 @@ export async function detectReceiptCorners(src: string): Promise<Pt[] | null> {
     gray0[j] = g;
     hist[g]++;
   }
-  const gray = blurGray(gray0, aw, ah);
+  const gray = gaussianBlur5x5(gray0, aw, ah);
 
   // Máscara binaria: el papel del ticket es la zona clara.
   // Usamos un umbral más bajo para capturar mejor los bordes del papel

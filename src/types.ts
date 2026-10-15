@@ -40,6 +40,7 @@ export interface Settings {
   seeded: boolean;
   exportPhotos?: boolean; // recuerda la última opción de exportación
   budget?: number; // presupuesto mensual (€)
+  visualStyle?: "oceanic" | "minimal"; // estilo visual de la app
 }
 
 export interface ToastMsg {

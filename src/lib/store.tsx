@@ -89,7 +89,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategoriesState] = useState<Category[]>(() => load(LS.cats, DEFAULT_CATEGORIES));
   const [stores, setStoresState] = useState<StoreEntry[]>(() => load(LS.stores, DEFAULT_STORES));
   const [settings, setSettingsState] = useState<Settings>(() =>
-    load(LS.settings, { theme: "cian", customColor: "#00b4d8", dark: true, seeded: false, exportPhotos: true })
+    load(LS.settings, { theme: "cian", customColor: "#00b4d8", dark: true, seeded: false, exportPhotos: true, visualStyle: "minimal" })
   );
   const [account, setAccount] = useState<StoredAccount | null>(() => load<StoredAccount | null>(LS.account, null));
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
@@ -157,9 +157,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     el.style.setProperty("--accent", accent);
     el.style.setProperty("--accent-soft", accent + "1f");
     el.style.setProperty("--accent-ink", readableOn(accent));
+    
+    // Aplicar estilo visual
+    const visualStyle = settings.visualStyle || "minimal";
+    el.setAttribute("data-theme", visualStyle);
+    
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", settings.dark ? "#0b132b" : "#e9f2f7");
-  }, [accent, settings.dark]);
+    if (meta) {
+      const bgColor = visualStyle === "minimal" 
+        ? (settings.dark ? "#0f172a" : "#ffffff")
+        : (settings.dark ? "#0b132b" : "#e9f2f7");
+      meta.setAttribute("content", bgColor);
+    }
+  }, [accent, settings.dark, settings.visualStyle]);
 
   const setSettings = useCallback((p: Partial<Settings>) => {
     setSettingsState((s) => {

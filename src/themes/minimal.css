@@ -1,0 +1,78 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   TEMA MINIMALISTA PROFESIONAL
+   Diseño limpio, sin efectos excesivos, enfocado en la funcionalidad
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="minimal"] {
+  /* Paleta neutra profesional */
+  --bg: #ffffff;
+  --card: #ffffff;
+  --card2: #f8f9fa;
+  --sheet: #ffffff;
+  --ink: #1a1a1a;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --line2: #d1d5db;
+  --accent: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.1);
+  --accent-ink: #ffffff;
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --sidebar: #f9fafb;
+  --photo-bg: #f3f4f6;
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --ease-fluid: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark[data-theme="minimal"] {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --card2: #334155;
+  --sheet: #1e293b;
+  --ink: #f1f5f9;
+  --muted: #94a3b8;
+  --line: #334155;
+  --line2: #475569;
+  --accent: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.15);
+  --accent-ink: #ffffff;
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --sidebar: #1e293b;
+  --photo-bg: #0f172a;
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* Aplicar tema minimalista */
+[data-theme="minimal"] body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+[data-theme="minimal"] .bg-wash {
+  background: var(--bg);
+}
+
+[data-theme="minimal"] .bg-card {
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+}
+
+[data-theme="minimal"] button,
+[data-theme="minimal"] a,
+[data-theme="minimal"] [role="switch"],
+[data-theme="minimal"] input,
+[data-theme="minimal"] select,
+[data-theme="minimal"] textarea {
+  transition: all 0.15s ease;
+}
+
+[data-theme="minimal"] button:hover {
+  transform: translateY(-1px);
+}
+
+[data-theme="minimal"] .shadow-print {
+  box-shadow: var(--shadow-card);
+}

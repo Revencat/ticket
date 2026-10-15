@@ -60,6 +60,42 @@ export default function Settings() {
           </div>
           <Toggle on={settings.dark} onChange={(v) => setSettings({ dark: v })} label="Modo oscuro" />
         </div>
+
+        <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
+          <div className="flex items-center gap-3">
+            <div className="w-[17px] h-[17px] rounded bg-acc flex items-center justify-center">
+              <span className="text-white text-[10px] font-bold">M</span>
+            </div>
+            <div>
+              <p className="text-[13.5px] font-medium">Estilo visual</p>
+              <p className="text-[12px] text-mut">Minimalista profesional</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSettings({ visualStyle: "oceanic" })}
+              className={cls(
+                "px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all",
+                settings.visualStyle === "oceanic"
+                  ? "bg-acc text-accink"
+                  : "bg-card2 text-mut hover:text-ink"
+              )}
+            >
+              Oceánico
+            </button>
+            <button
+              onClick={() => setSettings({ visualStyle: "minimal" })}
+              className={cls(
+                "px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all",
+                settings.visualStyle === "minimal" || !settings.visualStyle
+                  ? "bg-acc text-accink"
+                  : "bg-card2 text-mut hover:text-ink"
+              )}
+            >
+              Minimalista
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* Presupuesto mensual */}
