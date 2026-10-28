@@ -10,7 +10,7 @@ function prefetchRoute(path: string) {
 }
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard, Receipt, ScanLine, ShieldCheck, FileSpreadsheet, Cloud, Settings as SettingsIcon,
+  LayoutDashboard, Receipt, ScanLine, FileSpreadsheet, Cloud, Settings as SettingsIcon,
   Sun, Moon, Search, Keyboard, Sparkles, Command, type LucideIcon, WifiOff, QrCode, Download, Smartphone, MoreHorizontal,
 } from "lucide-react";
 import { useApp } from "../lib/store";
@@ -27,7 +27,6 @@ interface BIPEvent extends Event {
 const NAV: { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/", label: "Panel", icon: LayoutDashboard },
   { to: "/tickets", label: "Tickets", icon: Receipt },
-  { to: "/garantias", label: "Garantías", icon: ShieldCheck },
   { to: "/exportar", label: "Exportar", icon: FileSpreadsheet },
   { to: "/cuenta", label: "Cuenta", icon: Cloud },
   { to: "/ajustes", label: "Ajustes", icon: SettingsIcon },
@@ -37,7 +36,6 @@ const TITLES: Record<string, string> = {
   "/": "Panel",
   "/tickets": "Tickets",
   "/scan": "Escanear",
-  "/garantias": "Garantías",
   "/exportar": "Exportar",
   "/cuenta": "Cuenta",
   "/ajustes": "Ajustes",
@@ -93,19 +91,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     } catch {}
     setInstallEvt(null);
   };
-
-  const warrantyAlerts = useMemo(() => {
-    const now = Date.now();
-    let n = 0;
-    for (const t of tickets)
-      for (const it of t.items) {
-        if (!it.warrantyMonths) continue;
-        const end = new Date(t.date + "T00:00:00");
-        end.setMonth(end.getMonth() + it.warrantyMonths);
-        if ((end.getTime() - now) / 86400000 < 60) n++;
-      }
-    return n;
-  }, [tickets]);
 
   useEffect(() => {
     const h = (e: Event) => {
@@ -187,8 +172,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   if (isBoldTheme) {
     const navItemsWithBadges = NAV.map((item) => ({
       ...item,
-      badge: item.to === "/garantias" ? warrantyAlerts : item.to === "/tickets" ? tickets.length : 0,
-      badgeTone: item.to === "/garantias" ? "warn" as const : "mut" as const,
+      badge: item.to === "/tickets" ? tickets.length : 0,
+      badgeTone: "mut" as const,
     }));
 
     return (
@@ -332,7 +317,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               badgeTone="mut"
             />
           ))}
-          <DockItem {...NAV[2]} badge={warrantyAlerts} badgeTone="warn" hideOnMobile />
 
           {/* acción central: escanear (compacta en móvil) */}
           <div className="relative -mt-5 sm:-mt-6 mx-0.5 sm:mx-1">
@@ -352,14 +336,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <ScanLine size={20} strokeWidth={2.2} className="sm:w-[22px] sm:h-[22px]" />
             </motion.button>
           </div>
-
-          {/* Derecha del escaneo: Garantías solo en móvil (en escritorio ya va a la izquierda) */}
-          <DockItem
-            {...NAV[2]}
-            badge={warrantyAlerts}
-            badgeTone="warn"
-            hideOnDesktop
-          />
 
           {/* En móvil, «Más» abre el panel con las opciones restantes */}
           <button
