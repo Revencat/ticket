@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from "recharts";
 import { format, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
-import { ScanLine, Wallet, Receipt as ReceiptIcon, Percent, ChevronRight, Store as StoreIcon, ArrowUpRight, TrendingUp, TrendingDown, Layers, Target, PiggyBank, Flame, Image as ImageIcon } from "lucide-react";
+import { ScanLine, Wallet, Receipt as ReceiptIcon, Percent, ChevronRight, Store as StoreIcon, TrendingUp, TrendingDown, Layers, Target, PiggyBank, Flame, Image as ImageIcon } from "lucide-react";
 import { useApp } from "../lib/store";
 import { fmtEUR, relDate, monthKey, cls } from "../lib/util";
 import type { Ticket } from "../types";
@@ -67,76 +67,109 @@ export default function Dashboard() {
     return <EmptyState icon={<ReceiptIcon size={26} />} title="Todavía no hay tickets" desc="Escanea tu primer ticket con la cámara o sube una foto." action={<Link to="/scan"><Button size="lg"><ScanLine size={17} /> Escanear ticket</Button></Link>} />;
   }
 
-  const tiles = [
-    { label: `Gasto en ${stats.cur.full.split(" ")[0]}`, num: stats.cur.total, fmt: fmtEUR, icon: Wallet,
-      extra: stats.delta !== null ? <span className={cls("inline-flex items-center gap-1 text-[12px] font-medium tabular-nums", stats.delta > 0 ? "text-[var(--warning)]" : "text-[var(--success)]")}>{stats.delta > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />} {Math.abs(stats.delta).toFixed(0)}%</span> : <span className="text-[12px] text-[var(--text-3)]">—</span> },
-    { label: "Tickets este mes", num: stats.cur.count, icon: ReceiptIcon, extra: <span className="text-[12px] text-[var(--text-3)]">{tickets.length} en total</span> },
-    budget ? { label: "Presupuesto", num: 0, icon: budgetPct > 100 ? Flame : PiggyBank, isBudget: true as const, extra: null as never }
-           : { label: "Ticket medio", num: stats.cur.count ? stats.cur.total / stats.cur.count : 0, fmt: fmtEUR, icon: Percent, extra: <span className="text-[12px] text-[var(--text-3)]">este mes</span> },
-  ];
-
   return (
-    <div className="space-y-6">
-      {/* KPIs */}
-      <div className="grid grid-cols-3 gap-3">
-        {tiles.map((t, i) => (
-          <motion.div key={t.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-            className="surface p-4 hover:shadow-[var(--shadow-sm)] transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-caption">{t.label}</p>
-              <t.icon size={15} className="text-[var(--text-3)]" />
+    <div className="space-y-8">
+      {/* Hero editorial */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+        <p className="text-caption mb-2">Resumen del mes</p>
+        <h1 className="text-display text-[var(--text)] mb-1">
+          {stats.cur.full.split(" ")[0]} {stats.cur.full.split(" ")[1]}
+        </h1>
+        <div className="flex items-baseline gap-3">
+          <p className="text-title-1 text-[var(--accent)] tabular-nums">
+            <CountUp value={stats.cur.total} format={fmtEUR} />
+          </p>
+          {stats.delta !== null && (
+            <span className={cls("text-[14px] font-medium flex items-center gap-1", stats.delta > 0 ? "text-[var(--warning)]" : "text-[var(--success)]")}>
+              {stats.delta > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+              {Math.abs(stats.delta).toFixed(0)}%
+            </span>
+          )}
+        </div>
+      </motion.div>
+
+      {/* KPIs editoriales */}
+      <div className="grid grid-cols-3 gap-4">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="surface p-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-caption">Tickets</p>
+            <ReceiptIcon size={16} className="text-[var(--text-3)]" />
+          </div>
+          <p className="text-title-2 tabular-nums"><CountUp value={stats.cur.count} /></p>
+          <p className="text-footnote mt-1">{tickets.length} en total</p>
+        </motion.div>
+
+        {budget ? (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="surface p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-caption">Presupuesto</p>
+              {budgetPct > 100 ? <Flame size={16} className="text-[var(--danger)]" /> : <PiggyBank size={16} className="text-[var(--text-3)]" />}
             </div>
-            {"isBudget" in t && t.isBudget ? (
-              <>
-                <p className="text-[22px] font-semibold tabular-nums tracking-tight"><CountUp value={budgetPct} format={(n) => `${Math.round(n)}%`} /></p>
-                <div className="mt-2 h-1 rounded-full bg-[var(--surface-3)] overflow-hidden">
-                  <motion.div className={cls("h-full rounded-full", budgetPct > 100 ? "bg-[var(--danger)]" : budgetPct > 80 ? "bg-[var(--warning)]" : "bg-[var(--accent)]")}
-                    initial={{ width: 0 }} animate={{ width: `${Math.min(budgetPct, 100)}%` }} transition={{ duration: 0.5, delay: 0.2 }} />
-                </div>
-                <p className={cls("text-[11px] mt-1.5 tabular-nums", budgetPct > 100 ? "text-[var(--danger)] font-medium" : "text-[var(--text-3)]")}>
-                  {budgetPct > 100 ? `${fmtEUR(stats.cur.total - budget!)} por encima` : `quedan ${fmtEUR(budget! - stats.cur.total)}`}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-[22px] font-semibold tabular-nums tracking-tight"><CountUp value={("num" in t ? t.num : 0) as number} format={("fmt" in t ? t.fmt : undefined) as ((n: number) => string) | undefined} /></p>
-                <div className="mt-1">{t.extra}</div>
-              </>
-            )}
+            <p className="text-title-2 tabular-nums"><CountUp value={budgetPct} format={(n) => `${Math.round(n)}%`} /></p>
+            <div className="mt-2 h-1.5 rounded-full bg-[var(--surface-3)] overflow-hidden">
+              <motion.div className={cls("h-full rounded-full", budgetPct > 100 ? "bg-[var(--danger)]" : budgetPct > 80 ? "bg-[var(--warning)]" : "bg-[var(--accent)]")}
+                initial={{ width: 0 }} animate={{ width: `${Math.min(budgetPct, 100)}%` }} transition={{ duration: 0.5, delay: 0.2 }} />
+            </div>
+            <p className={cls("text-footnote mt-1.5 tabular-nums", budgetPct > 100 ? "text-[var(--danger)] font-medium" : "text-[var(--text-3)]")}>
+              {budgetPct > 100 ? `${fmtEUR(stats.cur.total - budget!)} por encima` : `quedan ${fmtEUR(budget! - stats.cur.total)}`}
+            </p>
           </motion.div>
-        ))}
+        ) : (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="surface p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-caption">Ticket medio</p>
+              <Percent size={16} className="text-[var(--text-3)]" />
+            </div>
+            <p className="text-title-2 tabular-nums"><CountUp value={stats.cur.count ? stats.cur.total / stats.cur.count : 0} format={fmtEUR} /></p>
+            <p className="text-footnote mt-1">este mes</p>
+          </motion.div>
+        )}
+
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="surface p-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-caption">Media 6 meses</p>
+            <Wallet size={16} className="text-[var(--text-3)]" />
+          </div>
+          <p className="text-title-2 tabular-nums"><CountUp value={stats.avg} format={fmtEUR} /></p>
+          <p className="text-footnote mt-1">por mes</p>
+        </motion.div>
       </div>
 
       {/* Gráficos */}
       <div className="grid lg:grid-cols-5 gap-4">
-        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="lg:col-span-3 surface p-5">
-          <div className="flex items-start justify-between mb-4">
+        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="lg:col-span-3 surface p-6">
+          <div className="flex items-start justify-between mb-5">
             <div>
+              <p className="text-caption mb-1">Evolución</p>
               <h2 className="text-title-3">Ritmo de gasto</h2>
-              <p className="text-footnote mt-0.5">Últimos 6 meses</p>
             </div>
             <div className="text-right">
-              <p className="text-[18px] font-semibold tabular-nums"><CountUp value={stats.cur.total} format={fmtEUR} /></p>
+              <p className="text-title-2 tabular-nums"><CountUp value={stats.cur.total} format={fmtEUR} /></p>
               <p className="text-footnote mt-0.5">{stats.delta !== null ? <span className={stats.delta > 0 ? "text-[var(--warning)]" : "text-[var(--success)]"}>{stats.delta > 0 ? "▲" : "▼"} {Math.abs(stats.delta).toFixed(0)}%</span> : "—"} vs {stats.prev.short}</p>
             </div>
           </div>
-          <div className="h-[220px]">
+          <div className="h-[240px]">
             <RhythmChart months={stats.months} avg={stats.avg} />
           </div>
         </motion.section>
 
-        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="lg:col-span-2 surface p-5">
-          <h2 className="text-title-3 flex items-center gap-2"><Layers size={15} className="text-[var(--accent)]" /> Por categoría</h2>
-          <p className="text-footnote mt-0.5 mb-4">Composición del mes</p>
+        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="lg:col-span-2 surface p-6">
+          <p className="text-caption mb-1">Composición</p>
+          <h2 className="text-title-3 mb-5">Por categoría</h2>
           <CompositionChart months={stats.months} onCat={openCat} />
         </motion.section>
       </div>
 
       {/* Top tiendas + Actividad */}
       <div className="grid lg:grid-cols-5 gap-4">
-        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="lg:col-span-3 surface p-5">
-          <h2 className="text-title-3 flex items-center gap-2"><StoreIcon size={15} className="text-[var(--accent)]" /> Top tiendas</h2>
-          <p className="text-footnote mt-0.5 mb-4">Dónde más gastas</p>
+        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="lg:col-span-3 surface p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <p className="text-caption mb-1">Ranking</p>
+              <h2 className="text-title-3">Top tiendas</h2>
+            </div>
+            <span className="text-footnote">{stats.topStores.length} tiendas</span>
+          </div>
           <ul className="space-y-1">
             {stats.topStores.map((s, i) => {
               const max = stats.topStores[0].total || 1;
@@ -146,13 +179,13 @@ export default function Dashboard() {
                   <button onClick={() => openStore(s.store)} className="relative w-full overflow-hidden rounded-xl hover:bg-[var(--surface-2)] transition-colors group text-left cursor-pointer">
                     <motion.span initial={{ width: 0 }} whileInView={{ width: `${pct}%` }} viewport={{ once: true }}
                       transition={{ duration: 0.5, delay: 0.05 + i * 0.04 }} className="absolute inset-y-0 left-0 bg-[var(--accent-soft)]" />
-                    <span className="relative flex items-center gap-3 px-3 py-2.5">
-                      <span className={cls("text-[11px] font-medium w-5 tabular-nums", i === 0 ? "text-[var(--accent)]" : "text-[var(--text-3)]")}>{String(i + 1).padStart(2, "0")}</span>
+                    <span className="relative flex items-center gap-3 px-3 py-3">
+                      <span className={cls("text-[13px] font-medium w-6 tabular-nums", i === 0 ? "text-[var(--accent)]" : "text-[var(--text-3)]")}>{String(i + 1).padStart(2, "0")}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[14px] font-medium truncate group-hover:text-[var(--accent)] transition-colors">{s.store}</span>
+                        <span className="block text-[15px] font-medium truncate group-hover:text-[var(--accent)] transition-colors">{s.store}</span>
                         <span className="block text-[12px] text-[var(--text-3)] tabular-nums">{s.count} tickets · media {fmtEUR(s.avg)}</span>
                       </span>
-                      <span className="text-[14px] font-semibold tabular-nums">{fmtEUR(s.total)}</span>
+                      <span className="text-[15px] font-semibold tabular-nums">{fmtEUR(s.total)}</span>
                     </span>
                   </button>
                 </li>
@@ -161,19 +194,22 @@ export default function Dashboard() {
           </ul>
         </motion.section>
 
-        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="lg:col-span-2 surface p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-title-3">Recientes</h2>
+        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="lg:col-span-2 surface p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <p className="text-caption mb-1">Últimos</p>
+              <h2 className="text-title-3">Recientes</h2>
+            </div>
             <Link to="/tickets" className="text-[13px] text-[var(--accent)] font-medium hover:underline">Ver todos</Link>
           </div>
-          <ul className="space-y-0.5">
+          <ul className="space-y-1">
             {stats.recent.map((t, i) => {
               const cat = catById.get(t.category);
               return (
                 <motion.li key={t.id} initial={{ opacity: 0, x: 8 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.03 }}>
-                  <button onClick={() => setSelectedId(t.id)} className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-[var(--surface-2)] transition-colors group cursor-pointer text-left">
-                    <span className="w-9 h-9 rounded-lg overflow-hidden bg-[var(--surface-3)] shrink-0 flex items-center justify-center">
-                      {t.photo ? <img src={t.photo} alt="" className="w-full h-full object-cover" loading="lazy" /> : <ImageIcon size={14} className="text-[var(--text-3)]" />}
+                  <button onClick={() => setSelectedId(t.id)} className="w-full flex items-center gap-3 px-2 py-2.5 -mx-2 rounded-xl hover:bg-[var(--surface-2)] transition-colors group cursor-pointer text-left">
+                    <span className="w-10 h-10 rounded-lg overflow-hidden bg-[var(--surface-3)] shrink-0 flex items-center justify-center">
+                      {t.photo ? <img src={t.photo} alt="" className="w-full h-full object-cover" loading="lazy" /> : <ImageIcon size={15} className="text-[var(--text-3)]" />}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[14px] font-medium truncate group-hover:text-[var(--accent)] transition-colors">{t.store}</span>
@@ -186,7 +222,7 @@ export default function Dashboard() {
             })}
           </ul>
           {!budget && (
-            <p className="mt-4 pt-3 border-t border-[var(--border)] text-[12px] text-[var(--text-3)] flex items-center gap-1.5">
+            <p className="mt-4 pt-4 border-t border-[var(--border)] text-[12px] text-[var(--text-3)] flex items-center gap-1.5">
               <Target size={11} className="text-[var(--accent)]" /> Define un presupuesto en Ajustes
             </p>
           )}
@@ -212,7 +248,7 @@ function RhythmChart({ months, avg }: { months: MonthRow[]; avg: number }) {
         <Tooltip cursor={{ fill: "var(--surface-3)" }} content={({ active, payload }) => {
           if (!active || !payload?.length) return null;
           const m = payload[0].payload as MonthRow;
-          return <div className="surface-elevated px-3 py-2 text-[12px]"><p className="font-medium capitalize">{m.full}</p><p className="text-[15px] font-semibold tabular-nums mt-0.5">{fmtEUR(m.total)}</p><p className="text-[var(--text-3)]">{m.count} tickets</p></div>;
+          return <div className="surface-elevated px-3 py-2 text-[12px]"><p className="font-medium capitalize">{m.full}</p><p className="text-[16px] font-semibold tabular-nums mt-0.5">{fmtEUR(m.total)}</p><p className="text-[var(--text-3)]">{m.count} tickets</p></div>;
         }} />
         {avg > 0 && <Bar dataKey="total" radius={[6, 6, 0, 0]} maxBarSize={40} animationDuration={600}>
           {data.map((m, i) => <Cell key={m.key} fill={i === 5 ? accent : `${accent}44`} fillOpacity={hover === null || hover === i ? 1 : 0.4} onMouseEnter={() => setHover(i)} style={{ transition: "fill-opacity .2s", cursor: "pointer" }} />)}
@@ -233,23 +269,23 @@ function CompositionChart({ months, onCat }: { months: MonthRow[]; onCat: (id: s
 
   return (
     <div>
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {[...months].reverse().map((m) => (
-          <div key={m.key} className="flex items-center gap-2">
-            <span className="w-8 text-[10px] font-medium text-[var(--text-3)] tabular-nums">{m.short}</span>
-            <div className="flex-1 h-4 flex rounded-md overflow-hidden bg-[var(--surface-3)]">
+          <div key={m.key} className="flex items-center gap-2.5">
+            <span className="w-8 text-[11px] font-medium text-[var(--text-3)] tabular-nums">{m.short}</span>
+            <div className="flex-1 h-5 flex rounded-md overflow-hidden bg-[var(--surface-3)]">
               {m.byCat.map((c) => (
                 <div key={c.id} onClick={() => onCat(c.id)} onMouseEnter={() => setActive(c.id)} onMouseLeave={() => setActive(null)}
                   className="h-full cursor-pointer transition-opacity" style={{ width: `${Math.max(c.pct, 2)}%`, background: c.color, opacity: active === null || active === c.id ? 1 : 0.3 }} />
               ))}
             </div>
-            <span className="w-14 text-right text-[10px] font-medium text-[var(--text-3)] tabular-nums">{m.total > 0 ? fmtEUR(m.total) : "—"}</span>
+            <span className="w-16 text-right text-[11px] font-medium text-[var(--text-3)] tabular-nums">{m.total > 0 ? fmtEUR(m.total) : "—"}</span>
           </div>
         ))}
       </div>
-      <div className="mt-4 pt-3 border-t border-[var(--border)]">
-        <p className="text-caption mb-2">Total 6 meses · {fmtEUR(totals.grand)}</p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+      <div className="mt-5 pt-4 border-t border-[var(--border)]">
+        <p className="text-caption mb-2.5">Total 6 meses · {fmtEUR(totals.grand)}</p>
+        <div className="flex flex-wrap gap-x-3 gap-y-2">
           {totals.rows.map((r) => (
             <button key={r.id} onClick={() => onCat(r.id)} onMouseEnter={() => setActive(r.id)} onMouseLeave={() => setActive(null)}
               className="flex items-center gap-1.5 text-[12px] cursor-pointer transition-opacity" style={{ opacity: active === null || active === r.id ? 1 : 0.4 }}>

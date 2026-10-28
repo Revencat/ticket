@@ -3,42 +3,42 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   TICKETBOX · Sistema de diseño
-   Inspirado en la claridad editorial y la precisión de producto premium.
+   TICKETBOX · El archivador editorial
+   Identidad: precisión, calidez, funcionalidad.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* Superficies */
-  --bg: #f5f5f7;
+  /* Superficies cálidas */
+  --bg: #faf8f3;
   --surface: #ffffff;
-  --surface-2: #fafafa;
-  --surface-3: #f0f0f2;
+  --surface-2: #f5f3ee;
+  --surface-3: #ebe9e4;
 
   /* Texto */
-  --text: #1d1d1f;
-  --text-secondary: #6e6e73;
-  --text-tertiary: #86868b;
+  --text: #2c2a26;
+  --text-secondary: #6b6862;
+  --text-tertiary: #9b9790;
 
   /* Bordes */
-  --border: rgba(0, 0, 0, 0.08);
-  --border-strong: rgba(0, 0, 0, 0.14);
+  --border: rgba(44, 42, 38, 0.08);
+  --border-strong: rgba(44, 42, 38, 0.16);
 
-  /* Acento */
-  --accent: #0071e3;
-  --accent-hover: #0077ed;
-  --accent-soft: rgba(0, 113, 227, 0.08);
+  /* Acento: verde oliva (archivador, papel, naturaleza) */
+  --accent: #4a5d3a;
+  --accent-hover: #5a6f48;
+  --accent-soft: rgba(74, 93, 58, 0.08);
   --accent-text: #ffffff;
 
-  /* Semánticos */
-  --success: #34c759;
-  --warning: #ff9f0a;
-  --danger: #ff3b30;
+  /* Semánticos cálidos */
+  --success: #5a8a4a;
+  --warning: #c89b3c;
+  --danger: #c44a3f;
 
-  /* Sombras */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
+  /* Sombras sutiles */
+  --shadow-xs: 0 1px 2px rgba(44, 42, 38, 0.04);
+  --shadow-sm: 0 2px 8px rgba(44, 42, 38, 0.06), 0 1px 2px rgba(44, 42, 38, 0.04);
+  --shadow-md: 0 4px 16px rgba(44, 42, 38, 0.08), 0 2px 4px rgba(44, 42, 38, 0.04);
+  --shadow-lg: 0 12px 40px rgba(44, 42, 38, 0.12), 0 4px 12px rgba(44, 42, 38, 0.06);
 
   /* Movimiento */
   --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
@@ -49,25 +49,25 @@
 }
 
 .dark {
-  --bg: #000000;
-  --surface: #1c1c1e;
-  --surface-2: #2c2c2e;
-  --surface-3: #3a3a3c;
+  --bg: #1a1816;
+  --surface: #2a2724;
+  --surface-2: #353230;
+  --surface-3: #403d3a;
 
-  --text: #f5f5f7;
-  --text-secondary: #a1a1a6;
-  --text-tertiary: #8e8e93;
+  --text: #f5f3ee;
+  --text-secondary: #a8a49e;
+  --text-tertiary: #7a7670;
 
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
+  --border: rgba(245, 243, 238, 0.08);
+  --border-strong: rgba(245, 243, 238, 0.16);
 
-  --accent: #0a84ff;
-  --accent-hover: #409cff;
-  --accent-soft: rgba(10, 132, 255, 0.12);
+  --accent: #6b8a5a;
+  --accent-hover: #7a9a68;
+  --accent-soft: rgba(107, 138, 90, 0.12);
 
-  --success: #30d158;
-  --warning: #ffd60a;
-  --danger: #ff453a;
+  --success: #6b9a5a;
+  --warning: #d8ab4c;
+  --danger: #d45a4f;
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -93,8 +93,9 @@
   --color-warning: var(--warning);
   --color-danger: var(--danger);
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Helvetica Neue", sans-serif;
-  --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+  --font-display: "Fraunces", "Playfair Display", Georgia, serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -108,7 +109,7 @@ html, body, #root {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -119,47 +120,73 @@ body {
               color var(--duration-normal) var(--ease);
 }
 
+/* Textura sutil de líneas de cuaderno */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 31px,
+      var(--border) 31px,
+      var(--border) 32px
+    );
+  opacity: 0.3;
+  pointer-events: none;
+  z-index: 0;
+}
+
 ::selection {
   background: var(--accent);
   color: var(--accent-text);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Tipografía
+   Tipografía editorial
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .text-display {
-  font-size: 34px;
-  line-height: 1.12;
-  letter-spacing: -0.025em;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+  font-variation-settings: "opsz" 96, "SOFT" 50;
 }
 
 .text-title-1 {
-  font-size: 28px;
+  font-family: var(--font-display);
+  font-size: 32px;
   line-height: 1.15;
-  letter-spacing: -0.02em;
-  font-weight: 700;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+  font-variation-settings: "opsz" 72, "SOFT" 50;
 }
 
 .text-title-2 {
-  font-size: 22px;
+  font-family: var(--font-display);
+  font-size: 24px;
   line-height: 1.2;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   font-weight: 600;
+  font-variation-settings: "opsz" 48, "SOFT" 50;
 }
 
 .text-title-3 {
-  font-size: 17px;
+  font-family: var(--font-display);
+  font-size: 18px;
   line-height: 1.3;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   font-weight: 600;
+  font-variation-settings: "opsz" 32, "SOFT" 50;
 }
 
 .text-headline {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.4;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.01em;
   font-weight: 600;
 }
 
@@ -217,7 +244,7 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Transiciones
+   Transiciones y movimiento
    ═══════════════════════════════════════════════════════════════════════════ */
 
 * {
@@ -238,7 +265,7 @@ button, a, input, select, textarea, [role="switch"] {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Focus
+   Focus y accesibilidad
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :focus-visible {
@@ -248,7 +275,7 @@ button, a, input, select, textarea, [role="switch"] {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Scroll
+   Scroll personalizado
    ═══════════════════════════════════════════════════════════════════════════ */
 
 ::-webkit-scrollbar {

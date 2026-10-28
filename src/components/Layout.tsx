@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Receipt, ScanLine, FileSpreadsheet, Cloud, Settings as SettingsIcon,
-  Sun, Moon, Search, Keyboard, Sparkles, Command, type LucideIcon, QrCode, Download,
+  Sun, Moon, Search, Sparkles, Command, type LucideIcon, QrCode, Download,
 } from "lucide-react";
 import { useApp } from "../lib/store";
 import { cls, norm } from "../lib/util";
@@ -25,7 +25,7 @@ const NAV: { to: string; label: string; icon: LucideIcon }[] = [
 const TITLES: Record<string, string> = {
   "/": "Panel",
   "/tickets": "Tickets",
-  "/scan": "Escanear",
+  "/scan": "Lector",
   "/exportar": "Exportar",
   "/cuenta": "Cuenta",
   "/ajustes": "Ajustes",
@@ -37,7 +37,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const nav = useNavigate();
   const mainRef = useRef<HTMLElement>(null);
   const [palette, setPalette] = useState(false);
-  const [shortcuts, setShortcuts] = useState(false);
   const [installEvt, setInstallEvt] = useState<BIPEvent | null>(null);
   const [qrOpen, setQrOpen] = useState(false);
   const [qrData, setQrData] = useState("");
@@ -71,7 +70,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         case "n": nav("/scan"); break;
         case "t": setSettings({ dark: !settings.dark }); break;
         case "e": nav("/exportar"); break;
-        case "?": setShortcuts(true); break;
       }
     };
     window.addEventListener("keydown", h);
@@ -96,24 +94,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Cabecera */}
-      <header className="h-[52px] shrink-0 flex items-center gap-3 px-4 sm:px-6 border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-xl z-30">
+      {/* Cabecera editorial */}
+      <header className="h-[56px] shrink-0 flex items-center gap-3 px-4 sm:px-6 border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-xl z-30">
         <button onClick={() => setMobileNav(!mobileNav)} className="md:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-[var(--surface-3)] cursor-pointer">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
         </button>
 
-        <NavLink to="/" className="flex items-center gap-2.5 cursor-pointer">
-          <Logo size={28} />
-          <span className="hidden sm:inline text-[16px] font-semibold tracking-tight text-[var(--text)]">
-            Ticket<span className="text-[var(--accent)]">Box</span>
+        <NavLink to="/" className="flex items-center gap-2.5 cursor-pointer group">
+          <motion.div whileHover={{ rotate: -5 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}>
+            <Logo size={28} />
+          </motion.div>
+          <span className="hidden sm:flex items-baseline gap-1">
+            <span className="text-title-3 text-[var(--text)]">Ticket</span>
+            <span className="text-title-3 text-[var(--accent)]">Box</span>
           </span>
         </NavLink>
 
         <span className="w-px h-5 bg-[var(--border)] hidden sm:block" />
         <AnimatePresence mode="wait">
-          <motion.span key={title} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.15 }} className="text-[15px] font-semibold text-[var(--text)]">
+          <motion.h1 
+            key={title} 
+            initial={{ opacity: 0, y: 4 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            exit={{ opacity: 0, y: -4 }} 
+            transition={{ duration: 0.15 }}
+            className="text-[16px] font-semibold text-[var(--text)]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
             {title}
-          </motion.span>
+          </motion.h1>
         </AnimatePresence>
 
         <div className="ml-auto flex items-center gap-1">
@@ -157,7 +166,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               className="fixed left-0 top-0 bottom-0 z-50 w-[260px] bg-[var(--surface)] border-r border-[var(--border)] md:hidden">
               <div className="p-4 pt-6">
                 <Logo size={36} />
-                <p className="text-[17px] font-semibold mt-3">TicketBox</p>
+                <p className="text-title-3 mt-3">TicketBox</p>
               </div>
               <nav className="px-2">
                 {NAV.map((item) => (
@@ -166,6 +175,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <item.icon size={18} /> {item.label}
                   </NavLink>
                 ))}
+                <NavLink to="/scan" onClick={() => setMobileNav(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-[15px] font-medium bg-[var(--accent)] text-white mt-2">
+                  <ScanLine size={18} /> Lector
+                </NavLink>
               </nav>
             </motion.div>
           </>
@@ -173,59 +186,44 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </AnimatePresence>
 
       {/* Contenido */}
-      <main ref={mainRef} className="flex-1 overflow-y-auto">
+      <main ref={mainRef} className="flex-1 overflow-y-auto relative z-10">
         <div className="max-w-[1080px] mx-auto px-4 sm:px-6 pt-6 pb-28">
           {children}
         </div>
       </main>
 
-      {/* Dock inferior */}
+      {/* Dock inferior equilibrado */}
       <nav className="fixed bottom-3 inset-x-0 z-40 flex justify-center px-3 pointer-events-none">
-        <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.1 }}
-          className="pointer-events-auto safe-bottom flex items-stretch px-2 py-2 rounded-2xl bg-[var(--surface)]/95 backdrop-blur-xl border border-[var(--border)] shadow-[var(--shadow-md)] max-w-[420px] w-full">
-
-          {/* Elementos regulares */}
-          {NAV.map((item, idx) => (
+        <motion.div 
+          initial={{ y: 80, opacity: 0 }} 
+          animate={{ y: 0, opacity: 1 }} 
+          transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.1 }}
+          className="pointer-events-auto safe-bottom flex items-stretch px-2 py-2 rounded-2xl bg-[var(--surface)]/95 backdrop-blur-xl border border-[var(--border)] shadow-[var(--shadow-md)] max-w-[420px] w-full"
+        >
+          {NAV.map((item) => (
             <DockItem 
               key={item.to} 
               {...item} 
               badge={item.to === "/tickets" ? tickets.length : 0}
-              isLast={false}
             />
           ))}
 
-          {/* Separador sutil antes del Lector */}
+          {/* Separador sutil */}
           <div className="w-px bg-[var(--border)] my-2 mx-1" />
 
-          {/* Lector (destacado al final) */}
+          {/* Lector destacado al final */}
           <DockItem
             to="/scan"
             label="Lector"
             icon={ScanLine}
             badge={0}
             isPrimary
-            isLast={true}
           />
         </motion.div>
       </nav>
 
       {/* Paleta ⌘K */}
       <CommandPalette open={palette} onClose={() => setPalette(false)} />
-
-      {/* Atajos */}
-      <Modal open={shortcuts} onClose={() => setShortcuts(false)}>
-        <div className="p-6">
-          <h2 className="text-title-2 mb-4">Atajos de teclado</h2>
-          <ul className="space-y-2.5 text-[14px]">
-            {[["Escanear ticket", "N"], ["Buscar", "⌘ K"], ["Exportar", "E"], ["Modo oscuro", "T"], ["Cerrar", "Esc"]].map(([l, k]) => (
-              <li key={k} className="flex justify-between py-1.5 border-b border-[var(--border)] last:border-0">
-                <span className="text-[var(--text-2)]">{l}</span>
-                <kbd className="px-2 py-0.5 rounded-md bg-[var(--surface-3)] text-[12px] font-mono text-[var(--text-2)]">{k}</kbd>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </Modal>
 
       {/* QR */}
       <Modal open={qrOpen} onClose={() => setQrOpen(false)}>
@@ -243,7 +241,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function DockItem({ to, label, icon: Icon, badge, isPrimary, isLast }: { to: string; label: string; icon: LucideIcon; badge: number; isPrimary?: boolean; isLast?: boolean }) {
+function DockItem({ to, label, icon: Icon, badge, isPrimary }: { to: string; label: string; icon: LucideIcon; badge: number; isPrimary?: boolean }) {
   return (
     <NavLink to={to} end={to === "/"} className="group relative flex-1 flex flex-col items-center" title={label}>
       {({ isActive }) => (
