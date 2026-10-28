@@ -34,13 +34,10 @@ export interface StoreEntry {
 }
 
 export interface Settings {
-  theme: string; // id de tema o "custom"
-  customColor: string;
   dark: boolean;
   seeded: boolean;
-  exportPhotos?: boolean; // recuerda la última opción de exportación
-  budget?: number; // presupuesto mensual (€)
-  visualStyle?: "oceanic" | "minimal" | "glass" | "neumorph" | "bold"; // estilo visual de la app
+  exportPhotos?: boolean;
+  budget?: number;
 }
 
 export interface ToastMsg {

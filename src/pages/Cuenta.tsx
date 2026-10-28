@@ -148,10 +148,10 @@ export default function Cuenta() {
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2.5">
-          <Button variant="outline" onClick={syncNow}>
+          <Button variant="secondary" onClick={syncNow}>
             <RefreshCw size={15} /> Sincronizar ahora
           </Button>
-          <Button variant="danger" onClick={() => setConfirmOut(true)}>
+          <Button variant="destructive" onClick={() => setConfirmOut(true)}>
             <LogOut size={15} /> Cerrar sesión
           </Button>
         </div>
@@ -189,8 +189,8 @@ export default function Cuenta() {
             Este dispositivo dejará de sincronizar. <strong className="text-ink">Tus tickets no se borran</strong>: quedan guardados aquí y puedes volver a entrar cuando quieras.
           </p>
           <div className="flex justify-end gap-2 mt-6">
-            <Button variant="ghost" onClick={() => setConfirmOut(false)}>Cancelar</Button>
-            <Button variant="danger" onClick={() => { signOut(); setConfirmOut(false); toast("info", "Sesión cerrada. Los tickets siguen en este dispositivo."); }}>
+            <Button variant="tertiary" onClick={() => setConfirmOut(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={() => { signOut(); setConfirmOut(false); toast("info", "Sesión cerrada. Los tickets siguen en este dispositivo."); }}>
               <LogOut size={15} /> Cerrar sesión
             </Button>
           </div>

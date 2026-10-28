@@ -334,7 +334,7 @@ export default function Scan() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
                 <Button size="lg" onClick={() => setPhase("camera")}><Camera size={18} /> Usar cámara</Button>
-                <Button size="lg" variant="outline" onClick={() => fileRef.current?.click()}><Upload size={18} /> Subir foto</Button>
+                <Button size="lg" variant="secondary" onClick={() => fileRef.current?.click()}><Upload size={18} /> Subir foto</Button>
               </div>
               <button onClick={runSimulation} className="mt-5 inline-flex items-center gap-2 text-[13px] text-acc font-medium hover:underline cursor-pointer">
                 <Sparkles size={14} /> Probar con un ticket simulado
@@ -495,7 +495,7 @@ export default function Scan() {
             <h2 className="font-display font-bold text-lg">No se pudo leer el ticket</h2>
             <p className="text-mut text-sm mt-2 leading-relaxed">{errMsg}</p>
             <div className="flex gap-3 justify-center mt-6">
-              <Button variant="outline" onClick={() => setPhase("input")}><ArrowLeft size={15} /> Volver</Button>
+              <Button variant="secondary" onClick={() => setPhase("input")}><ArrowLeft size={15} /> Volver</Button>
               <Button onClick={() => loadDraft({ store: "", date: todayISO(), total: 0, category: "otros", items: [], photo })}>
                 Crear manualmente
               </Button>
@@ -568,8 +568,8 @@ export default function Scan() {
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-[13px] font-medium text-mut">Productos detectados ({items.length})</span>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="ghost" onClick={recomputeTotal} title="Sumar los productos"><RefreshCw size={12} /> Recalcular total</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setItems((xs) => [...xs, { id: uid(), name: "", qty: 1, price: 0, warrantyMonths: 0 }])}>
+                    <Button size="sm" variant="tertiary" onClick={recomputeTotal} title="Sumar los productos"><RefreshCw size={12} /> Recalcular total</Button>
+                    <Button size="sm" variant="tertiary" onClick={() => setItems((xs) => [...xs, { id: uid(), name: "", qty: 1, price: 0, warrantyMonths: 0 }])}>
                       <Plus size={12} /> Añadir
                     </Button>
                   </div>
@@ -616,7 +616,7 @@ export default function Scan() {
               )}
 
               <div className="flex items-center gap-3 pt-1">
-                <Button variant="ghost" onClick={() => setPhase("input")}><ArrowLeft size={15} /> Descartar</Button>
+                <Button variant="tertiary" onClick={() => setPhase("input")}><ArrowLeft size={15} /> Descartar</Button>
                 <Button size="lg" className="flex-1" onClick={saveTicket} disabled={saving}>
                   <Save size={16} /> {saving ? "Archivando…" : "Guardar ticket"}
                 </Button>
