@@ -19,19 +19,20 @@ export function Button({
   title?: string;
 }) {
   return (
-    <button
+    <motion.button
       type={type}
       title={title}
       disabled={disabled}
+      whileTap={{ scale: 0.97 }}
       onClick={onClick}
       className={cls(
         "inline-flex items-center justify-center gap-2 font-medium select-none cursor-pointer",
-        "active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none",
+        "disabled:opacity-40 disabled:pointer-events-none",
         "transition-all duration-[150ms]",
         size === "sm" && "text-[13px] px-3 h-8 rounded-lg",
         size === "md" && "text-[14px] px-4 h-10 rounded-xl",
         size === "lg" && "text-[15px] px-5 h-12 rounded-xl",
-        variant === "primary" && "bg-[var(--accent)] text-[var(--accent-text)] hover:bg-[var(--accent-hover)]",
+        variant === "primary" && "bg-[var(--accent)] text-[var(--accent-text)] hover:bg-[var(--accent-hover)] shadow-[var(--shadow-xs)]",
         variant === "secondary" && "bg-[var(--surface-3)] text-[var(--text)] hover:bg-[var(--border-strong)]",
         variant === "tertiary" && "text-[var(--accent)] hover:bg-[var(--accent-soft)]",
         variant === "destructive" && "bg-[var(--danger)] text-white hover:opacity-90",
@@ -39,7 +40,7 @@ export function Button({
       )}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 
@@ -53,9 +54,10 @@ export function IconBtn({
   danger?: boolean;
 }) {
   return (
-    <button
+    <motion.button
       type="button"
       title={title}
+      whileTap={{ scale: 0.9 }}
       onClick={onClick}
       className={cls(
         "inline-flex items-center justify-center w-10 h-10 rounded-full cursor-pointer",
@@ -65,7 +67,7 @@ export function IconBtn({
       )}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 
@@ -109,12 +111,12 @@ export function CatIcon({ id, size = 16, className }: { id: string; size?: numbe
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Logo
+   Logo editorial
    ═══════════════════════════════════════════════════════════════════════════ */
 export function Logo({ size = 32 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 96 96" aria-hidden>
-      <rect width="96" height="96" rx="22" fill="var(--text)" />
+      <rect width="96" height="96" rx="22" fill="var(--accent)" />
       <path d="M28 20h40v52l-5-4-5 4-5-4-5 4-5-4-5 4-5-4-5 4z" fill="var(--surface)" />
       <path d="M36 30h24M36 38h24M36 46h14" stroke="var(--text-3)" strokeWidth="3.5" strokeLinecap="round" />
       <rect x="36" y="54" width="24" height="8" rx="2" fill="var(--accent)" />
