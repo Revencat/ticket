@@ -1,401 +1,156 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Moon, Sun, Plus, Trash2, Sparkles, Database, Palette, Store as StoreIcon, Tag, Download, Check, Camera, Cpu, Lock, FileSpreadsheet, EyeOff, Cloud, MapPin, PiggyBank } from "lucide-react";
-import { useApp, THEMES } from "../lib/store";
+import { Moon, Sun, Plus, Trash2, Sparkles, Database, Store as StoreIcon, Tag, Download, PiggyBank, MapPin, Camera, Cpu, Lock, FileSpreadsheet, EyeOff, Cloud } from "lucide-react";
+import { useApp } from "../lib/store";
 import { cls, uid } from "../lib/util";
 import { Button, Toggle, Modal, inputCls, CatIcon } from "../components/ui";
 
 export default function Settings() {
-  const { settings, setSettings, categories, setCategories, stores, setStores, tickets, loadDemo, clearAll, toast, accent } = useApp();
-  const nav = useNavigate();
+  const { settings, setSettings, categories, setCategories, stores, setStores, tickets, loadDemo, clearAll, toast } = useApp();
   const [confirmWipe, setConfirmWipe] = useState(false);
-
   const usedCategories = new Set(tickets.map((t) => t.category));
-  
-  // Detectar si es móvil
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
-  const version = isMobile ? "0.3" : "0.7";
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
+    <div className="max-w-2xl mx-auto space-y-4">
       {/* Apariencia */}
-      <section className="bg-card border border-line rounded-xl p-5">
-        <h2 className="font-display font-bold text-[15px] flex items-center gap-2 mb-4"><Palette size={16} className="text-acc" /> Apariencia</h2>
-        <p className="text-[13px] font-medium text-mut mb-2">Color de acento · 6 temas + propio</p>
-        <div className="flex flex-wrap gap-2.5">
-          {THEMES.map((t) => {
-            const active = settings.theme === t.id;
-            const color = t.id === "custom" ? settings.customColor || accent : t.color;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setSettings({ theme: t.id })}
-                className={cls(
-                  "flex items-center gap-2 pl-1.5 pr-3 h-9 rounded-full border transition-all cursor-pointer",
-                  active ? "border-acc bg-acc/8" : "border-line hover:border-line2"
-                )}
-                title={t.name}
-              >
-                <span className="w-6 h-6 rounded-full relative flex items-center justify-center border border-black/10" style={{ background: color }}>
-                  {active && <Check size={12} className="text-white drop-shadow" />}
-                </span>
-                <span className="text-[12.5px] font-medium">{t.name}</span>
-                {t.id === "custom" && (
-                  <input
-                    type="color"
-                    value={settings.customColor || "#00b4d8"}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => setSettings({ theme: "custom", customColor: e.target.value })}
-                    className="w-6 h-6 rounded-full cursor-pointer border-0 bg-transparent p-0"
-                    aria-label="Color personalizado"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
+      <section className="surface p-5">
+        <h2 className="text-title-3 flex items-center gap-2 mb-4">Apariencia</h2>
+        <div className="flex items-center justify-between py-3 border-b border-[var(--border)]">
           <div className="flex items-center gap-3">
-            {settings.dark ? <Moon size={17} className="text-acc" /> : <Sun size={17} className="text-acc" />}
+            {settings.dark ? <Moon size={17} className="text-[var(--accent)]" /> : <Sun size={17} className="text-[var(--accent)]" />}
             <div>
-              <p className="text-[13.5px] font-medium">Modo oscuro</p>
-              <p className="text-[12px] text-mut">También con la tecla T</p>
+              <p className="text-[14px] font-medium">Modo oscuro</p>
+              <p className="text-footnote">También con la tecla T</p>
             </div>
           </div>
           <Toggle on={settings.dark} onChange={(v) => setSettings({ dark: v })} label="Modo oscuro" />
         </div>
-
-        <div className="mt-4 border-t border-line pt-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-[17px] h-[17px] rounded bg-acc flex items-center justify-center">
-              <span className="text-white text-[10px] font-bold">★</span>
-            </div>
-            <div>
-              <p className="text-[13.5px] font-medium">Estilo visual</p>
-              <p className="text-[12px] text-mut">Elige el diseño que más te guste</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setSettings({ visualStyle: "oceanic" })}
-              className={cls(
-                "px-3 py-2.5 rounded-lg text-[12px] font-medium transition-all text-left",
-                settings.visualStyle === "oceanic"
-                  ? "bg-acc text-accink"
-                  : "bg-card2 text-mut hover:text-ink hover:bg-card"
-              )}
-            >
-              <div className="font-semibold">Oceánico</div>
-              <div className="text-[10px] opacity-80 mt-0.5">Gradientes y efectos</div>
-            </button>
-            <button
-              onClick={() => setSettings({ visualStyle: "minimal" })}
-              className={cls(
-                "px-3 py-2.5 rounded-lg text-[12px] font-medium transition-all text-left",
-                settings.visualStyle === "minimal"
-                  ? "bg-acc text-accink"
-                  : "bg-card2 text-mut hover:text-ink hover:bg-card"
-              )}
-            >
-              <div className="font-semibold">Minimal</div>
-              <div className="text-[10px] opacity-80 mt-0.5">Apple-style, limpio</div>
-            </button>
-            <button
-              onClick={() => setSettings({ visualStyle: "glass" })}
-              className={cls(
-                "px-3 py-2.5 rounded-lg text-[12px] font-medium transition-all text-left",
-                settings.visualStyle === "glass"
-                  ? "bg-acc text-accink"
-                  : "bg-card2 text-mut hover:text-ink hover:bg-card"
-              )}
-            >
-              <div className="font-semibold">Glass</div>
-              <div className="text-[10px] opacity-80 mt-0.5">Vision Pro, cristal</div>
-            </button>
-            <button
-              onClick={() => setSettings({ visualStyle: "neumorph" })}
-              className={cls(
-                "px-3 py-2.5 rounded-lg text-[12px] font-medium transition-all text-left",
-                settings.visualStyle === "neumorph"
-                  ? "bg-acc text-accink"
-                  : "bg-card2 text-mut hover:text-ink hover:bg-card"
-              )}
-            >
-              <div className="font-semibold">Neumorph</div>
-              <div className="text-[10px] opacity-80 mt-0.5">Soft UI, táctil</div>
-            </button>
-            <button
-              onClick={() => setSettings({ visualStyle: "bold" })}
-              className={cls(
-                "px-3 py-2.5 rounded-lg text-[12px] font-medium transition-all text-left col-span-2",
-                settings.visualStyle === "bold"
-                  ? "bg-acc text-accink"
-                  : "bg-card2 text-mut hover:text-ink hover:bg-card"
-              )}
-            >
-              <div className="font-semibold">Bold</div>
-              <div className="text-[10px] opacity-80 mt-0.5">Brutalismo, alto contraste</div>
-            </button>
-          </div>
-        </div>
       </section>
 
-      {/* Presupuesto mensual */}
-      <section className="bg-card border border-line rounded-xl p-5">
-        <h2 className="font-display font-bold text-[15px] flex items-center gap-2 mb-1"><PiggyBank size={16} className="text-acc" /> Presupuesto mensual</h2>
-        <p className="text-[12.5px] text-mut mb-4">
-          Si defines un tope de gasto, el panel te mostrará cuánto llevas del mes contra él y te avisará si te pasas.
-        </p>
+      {/* Presupuesto */}
+      <section className="surface p-5">
+        <h2 className="text-title-3 flex items-center gap-2 mb-4"><PiggyBank size={16} className="text-[var(--accent)]" /> Presupuesto mensual</h2>
         <div className="flex flex-wrap items-end gap-3">
-          <div className="w-44">
-            <label className="block text-[13px] font-medium text-mut mb-1.5" htmlFor="tb-budget">Tope mensual (€)</label>
-            <input
-              id="tb-budget"
-              type="number"
-              min={0}
-              step={10}
-              placeholder="p. ej. 600"
-              className={cls(inputCls, "font-mono tnum")}
+          <div className="w-40">
+            <label className="block text-[13px] font-medium text-[var(--text-2)] mb-1.5">Tope (€)</label>
+            <input type="number" min={0} step={10} placeholder="p. ej. 600" className={cls(inputCls, "tabular-nums")}
               defaultValue={settings.budget ?? ""}
-              onBlur={(e) => {
-                const v = parseFloat(e.target.value);
-                setSettings({ budget: Number.isFinite(v) && v > 0 ? Math.round(v * 100) / 100 : undefined });
-                if (Number.isFinite(v) && v > 0) toast("ok", `Presupuesto fijado en ${v.toLocaleString("es-ES")} €/mes.`);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              }}
-            />
+              onBlur={(e) => { const v = parseFloat(e.target.value); setSettings({ budget: Number.isFinite(v) && v > 0 ? Math.round(v * 100) / 100 : undefined }); if (Number.isFinite(v) && v > 0) toast("ok", `Presupuesto: ${v} €/mes.`); }}
+              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
           </div>
-          {settings.budget ? (
-            <Button variant="ghost" onClick={() => { setSettings({ budget: undefined }); toast("info", "Presupuesto retirado."); }}>Quitar presupuesto</Button>
-          ) : (
-            <span className="text-[12px] text-mut pb-2.5">Sin presupuesto: el panel mostrará el ticket medio en su lugar.</span>
-          )}
+          {settings.budget ? <Button variant="tertiary" onClick={() => { setSettings({ budget: undefined }); toast("info", "Presupuesto retirado."); }}>Quitar</Button> : <span className="text-[12px] text-[var(--text-3)] pb-2.5">Sin presupuesto definido.</span>}
         </div>
       </section>
 
       {/* Categorías */}
-      <section className="bg-card border border-line rounded-xl p-5">
-        <h2 className="font-display font-bold text-[15px] flex items-center gap-2 mb-1"><Tag size={16} className="text-acc" /> Categorías</h2>
-        <p className="text-[12.5px] text-mut mb-4">Cada ticket se clasifica en una; el OCR sugiere la categoría con estas palabras clave.</p>
+      <section className="surface p-5">
+        <h2 className="text-title-3 flex items-center gap-2 mb-1"><Tag size={16} className="text-[var(--accent)]" /> Categorías</h2>
+        <p className="text-footnote mb-4">El OCR sugiere la categoría con estas palabras clave.</p>
         <ul className="space-y-2">
           {categories.map((c) => (
             <li key={c.id} className="flex items-center gap-2.5">
-              <input
-                type="color"
-                value={c.color}
-                onChange={(e) => setCategories(categories.map((x) => (x.id === c.id ? { ...x, color: e.target.value } : x)))}
-                className="w-8 h-8 rounded-lg cursor-pointer border border-line bg-transparent p-0.5"
-                aria-label={`Color de ${c.name}`}
-              />
-              <input
-                className={cls(inputCls, "flex-1")}
-                value={c.name}
-                onChange={(e) => setCategories(categories.map((x) => (x.id === c.id ? { ...x, name: e.target.value } : x)))}
-              />
-              <span className="hidden sm:flex items-center gap-1.5 text-[12px] text-mut"><CatIcon id={c.id} size={14} />{tickets.filter((t) => t.category === c.id).length}</span>
-              <button
-                onClick={() => {
-                  if (usedCategories.has(c.id)) {
-                    toast("warn", `No puedes borrar «${c.name}»: hay tickets que la usan. Cámbialos antes de categoría.`);
-                    return;
-                  }
-                  setCategories(categories.filter((x) => x.id !== c.id));
-                  toast("info", `Categoría «${c.name}» eliminada.`);
-                }}
-                className="w-9 h-9 rounded-lg flex items-center justify-center text-mut hover:text-danger hover:bg-danger/10 transition-colors cursor-pointer"
-                title="Eliminar categoría"
-              >
-                <Trash2 size={15} />
-              </button>
+              <input type="color" value={c.color} onChange={(e) => setCategories(categories.map((x) => (x.id === c.id ? { ...x, color: e.target.value } : x)))} className="w-8 h-8 rounded-lg cursor-pointer border border-[var(--border)] bg-transparent p-0.5" />
+              <input className={cls(inputCls, "flex-1")} value={c.name} onChange={(e) => setCategories(categories.map((x) => (x.id === c.id ? { ...x, name: e.target.value } : x)))} />
+              <span className="hidden sm:flex items-center gap-1.5 text-[12px] text-[var(--text-3)]"><CatIcon id={c.id} size={13} />{tickets.filter((t) => t.category === c.id).length}</span>
+              <button onClick={() => { if (usedCategories.has(c.id)) { toast("warn", `No puedes borrar «${c.name}»: hay tickets que la usan.`); return; } setCategories(categories.filter((x) => x.id !== c.id)); toast("info", `«${c.name}» eliminada.`); }}
+                className="w-9 h-9 rounded-lg flex items-center justify-center text-[var(--text-3)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 cursor-pointer"><Trash2 size={14} /></button>
             </li>
           ))}
         </ul>
-        <Button
-          size="sm"
-          variant="soft"
-          className="mt-3"
-          onClick={() => {
-            const id = "cat-" + uid().slice(0, 6);
-            setCategories([...categories, { id, name: "Nueva categoría", color: "#0e7490", keywords: [] }]);
-          }}
-        >
+        <Button variant="secondary" size="sm" className="mt-3" onClick={() => setCategories([...categories, { id: "cat-" + uid().slice(0, 6), name: "Nueva categoría", color: "#0e7490", keywords: [] }])}>
           <Plus size={13} /> Añadir categoría
         </Button>
       </section>
 
       {/* Tiendas */}
-      <section className="bg-card border border-line rounded-xl p-5">
-        <h2 className="font-display font-bold text-[15px] flex items-center gap-2 mb-1"><StoreIcon size={16} className="text-acc" /> Tiendas conocidas</h2>
-        <p className="text-[12.5px] text-mut mb-4">Sirven al OCR para reconocer la tienda y asignarle su categoría automáticamente.</p>
+      <section className="surface p-5">
+        <h2 className="text-title-3 flex items-center gap-2 mb-1"><StoreIcon size={16} className="text-[var(--accent)]" /> Tiendas conocidas</h2>
+        <p className="text-footnote mb-4">Ayudan al OCR a reconocer la tienda automáticamente.</p>
         <ul className="space-y-2">
           {stores.map((s, i) => (
             <li key={s.name + i} className="flex items-center gap-2.5">
-              <input
-                className={cls(inputCls, "flex-1")}
-                value={s.name}
-                onChange={(e) => setStores(stores.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
-              />
-              <select
-                className={cls(inputCls, "w-40")}
-                value={s.category}
-                onChange={(e) => setStores(stores.map((x, j) => (j === i ? { ...x, category: e.target.value } : x)))}
-              >
+              <input className={cls(inputCls, "flex-1")} value={s.name} onChange={(e) => setStores(stores.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
+              <select className={cls(inputCls, "w-36")} value={s.category} onChange={(e) => setStores(stores.map((x, j) => (j === i ? { ...x, category: e.target.value } : x)))}>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-              <button
-                onClick={() => { setStores(stores.filter((_, j) => j !== i)); toast("info", `«${s.name}» eliminada de la lista.`); }}
-                className="w-9 h-9 rounded-lg flex items-center justify-center text-mut hover:text-danger hover:bg-danger/10 transition-colors cursor-pointer"
-                title="Eliminar tienda"
-              >
-                <Trash2 size={15} />
-              </button>
+              <button onClick={() => { setStores(stores.filter((_, j) => j !== i)); toast("info", `«${s.name}» eliminada.`); }}
+                className="w-9 h-9 rounded-lg flex items-center justify-center text-[var(--text-3)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 cursor-pointer"><Trash2 size={14} /></button>
             </li>
           ))}
         </ul>
-        <Button
-          size="sm"
-          variant="soft"
-          className="mt-3"
-          onClick={() => setStores([...stores, { name: "Nueva tienda", category: "otros", keywords: ["nueva tienda"] }])}
-        >
+        <Button variant="secondary" size="sm" className="mt-3" onClick={() => setStores([...stores, { name: "Nueva tienda", category: "otros", keywords: ["nueva tienda"] }])}>
           <Plus size={13} /> Añadir tienda
         </Button>
       </section>
 
       {/* Datos */}
-      <section className="bg-card border border-line rounded-xl p-5">
-        <h2 className="font-display font-bold text-[15px] flex items-center gap-2 mb-1"><Database size={16} className="text-acc" /> Datos</h2>
-        <p className="text-[12.5px] text-mut mb-4">
-          {tickets.length} tickets guardados en IndexedDB de este navegador. Nada se envía a servidores propios.
-        </p>
+      <section className="surface p-5">
+        <h2 className="text-title-3 flex items-center gap-2 mb-1"><Database size={16} className="text-[var(--accent)]" /> Datos</h2>
+        <p className="text-footnote mb-4">{tickets.length} tickets en IndexedDB. Nada se envía a servidores propios.</p>
         <div className="flex flex-wrap gap-2.5">
-          <Button variant="outline" onClick={async () => { const n = await loadDemo(); toast("ok", `${n} tickets de ejemplo añadidos.`); }}>
-            <Sparkles size={15} /> Añadir datos de ejemplo
-          </Button>
-          <Button variant="outline" onClick={() => nav("/exportar")}>
-            <Download size={15} /> Exportar todo
-          </Button>
-          <Button variant="danger" onClick={() => setConfirmWipe(true)}>
-            <Trash2 size={15} /> Borrar todos los tickets
-          </Button>
+          <Button variant="secondary" onClick={async () => { const n = await loadDemo(); toast("ok", `${n} tickets de ejemplo.`); }}><Sparkles size={14} /> Datos de ejemplo</Button>
+          <Button variant="destructive" onClick={() => setConfirmWipe(true)}><Trash2 size={14} /> Borrar todo</Button>
         </div>
       </section>
 
-      {/* Dónde pasa tu foto */}
-      <section className="bg-card border border-line rounded-xl p-5">
-        <h2 className="font-display font-bold text-[15px] flex items-center gap-2 mb-1"><MapPin size={16} className="text-acc" /> Dónde pasa tu foto, paso a paso</h2>
-        <p className="text-[12.5px] text-mut mb-5 leading-relaxed">
-          Transparencia total: este es el recorrido exacto de la imagen de cada ticket, desde que la haces hasta que la exportas.
-          <strong className="text-ink"> TicketBox no tiene servidores propios y no almacena tus fotos en ningún sitio.</strong>
-        </p>
-
-        <ol className="relative space-y-5 ml-1">
-          <span className="absolute left-[15px] top-4 bottom-4 w-px bg-line" aria-hidden />
+      {/* Privacidad */}
+      <section className="surface p-5">
+        <h2 className="text-title-3 flex items-center gap-2 mb-1"><MapPin size={16} className="text-[var(--accent)]" /> Privacidad</h2>
+        <p className="text-footnote mb-4">Tu foto nunca sale del dispositivo salvo que actives la sincronización.</p>
+        <ol className="space-y-3 ml-1">
           {[
-            {
-              icon: Camera, title: "1 · Captura", badge: "En tu dispositivo", tone: "ok",
-              text: "La foto se hace con tu cámara o se elige de tu galería. En este momento la imagen solo existe en tu móvil u ordenador; no se sube a ningún sitio.",
-            },
-            {
-              icon: Cpu, title: "2 · Lectura del ticket (OCR)", badge: "En tu dispositivo", tone: "ok",
-              text: "Tesseract.js lee el total, la fecha, la tienda y los productos dentro de tu navegador. La foto no se envía a ningún servidor. La única descarga (solo la primera vez) es el motor OCR y el idioma español (~4 MB) desde su CDN oficial; después funciona incluso sin conexión.",
-            },
-            {
-              icon: Database, title: "3 · Guardado", badge: "En tu dispositivo", tone: "ok",
-              text: "La foto se comprime (~900 px, JPEG) y se guarda en IndexedDB, el almacén privado de tu navegador, junto con los datos del ticket. Solo tú puedes acceder desde tu sesión de usuario de este dispositivo.",
-            },
-            {
-              icon: Cloud, title: "4 · Sincronización entre dispositivos", badge: "Red · cifrado de extremo a extremo", tone: "warn",
-              text: "Solo ocurre si creas una cuenta. La foto se cifra en tu dispositivo con AES-256-GCM (clave derivada de tu contraseña con PBKDF2, 80.000 iteraciones) y viaja por un relé MQTT público (broker.emqx.io, con TLS). El relé solo ve datos ilegibles y no guarda nada. Sin cuenta, este paso no existe.",
-              optional: true,
-            },
-            {
-              icon: FileSpreadsheet, title: "5 · Exportación a Excel", badge: "En tu dispositivo", tone: "ok",
-              text: "El libro .xlsx se genera dentro de tu navegador con ExcelJS y la foto queda incrustada en el archivo que se descarga. No se transmite a ningún servidor.",
-            },
-            {
-              icon: EyeOff, title: "6 · Sin seguimiento", badge: "Privacidad", tone: "mut",
-              text: "No usamos analíticas, cookies de terceros ni llamadas externas, salvo las dos descritas (descarga inicial del OCR y sincronización opcional cifrada). Nadie más ve tus tickets.",
-            },
+            { icon: Camera, title: "1 · Captura", badge: "En tu dispositivo", tone: "success", text: "La foto se hace con tu cámara o galería. No se sube a ningún sitio." },
+            { icon: Cpu, title: "2 · OCR", badge: "En tu dispositivo", tone: "success", text: "Tesseract.js lee total, fecha, tienda y productos dentro de tu navegador." },
+            { icon: Database, title: "3 · Guardado", badge: "En tu dispositivo", tone: "success", text: "La foto se guarda en IndexedDB, el almacén privado de tu navegador." },
+            { icon: Cloud, title: "4 · Sincronización", badge: "Opcional · cifrado", tone: "warning", text: "Solo si creas cuenta. Cifrado AES-256-GCM con clave derivada de tu contraseña." },
+            { icon: FileSpreadsheet, title: "5 · Exportación", badge: "En tu dispositivo", tone: "success", text: "El archivo se genera dentro de tu navegador." },
+            { icon: EyeOff, title: "6 · Sin seguimiento", badge: "Privacidad", tone: "neutral", text: "Sin analíticas, cookies de terceros ni llamadas externas." },
           ].map((s) => (
-            <li key={s.title} className="relative flex gap-4">
-              <span className="relative z-10 w-8 h-8 rounded-full bg-card border border-line2 flex items-center justify-center shrink-0">
-                <s.icon size={15} className="text-acc" />
-              </span>
-              <div className="pb-1 min-w-0">
+            <li key={s.title} className="flex gap-3">
+              <span className="w-8 h-8 rounded-full bg-[var(--surface-3)] flex items-center justify-center shrink-0"><s.icon size={14} className="text-[var(--accent)]" /></span>
+              <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-display font-semibold text-[14px]">{s.title}</p>
-                  <span
-                    className={cls(
-                      "text-[10.5px] font-semibold px-2 py-0.5 rounded-full border",
-                      s.tone === "ok" && "text-ok bg-ok/8 border-ok/25",
-                      s.tone === "warn" && "text-warn bg-warn/8 border-warn/25",
-                      s.tone === "mut" && "text-mut bg-card2 border-line2"
-                    )}
-                  >
-                    {s.badge}
-                  </span>
-                  {s.optional && <span className="text-[10.5px] text-mut italic">opcional</span>}
+                  <p className="text-[14px] font-medium">{s.title}</p>
+                  <span className={cls("text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                    s.tone === "success" && "text-[var(--success)] bg-[var(--success)]/10",
+                    s.tone === "warning" && "text-[var(--warning)] bg-[var(--warning)]/10",
+                    s.tone === "neutral" && "text-[var(--text-3)] bg-[var(--surface-3)]"
+                  )}>{s.badge}</span>
                 </div>
-                <p className="text-[12.5px] text-mut mt-1 leading-relaxed">{s.text}</p>
+                <p className="text-[12px] text-[var(--text-2)] mt-0.5 leading-relaxed">{s.text}</p>
               </div>
             </li>
           ))}
         </ol>
+        <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-start gap-2">
+          <Lock size={13} className="text-[var(--text-3)] shrink-0 mt-0.5" />
+          <p className="text-[12px] text-[var(--text-3)] leading-relaxed"><strong className="text-[var(--text-2)]">Tus datos son tuyos.</strong> Si borras un ticket, se elimina de tu dispositivo.</p>
+        </div>
+      </section>
 
-        <div className="mt-5 border-t border-line pt-4 flex items-start gap-3">
-          <Lock size={15} className="text-mut shrink-0 mt-0.5" />
-          <p className="text-[12px] text-mut leading-relaxed">
-            <strong className="text-ink">Tus datos son tuyos.</strong> Las fotos y tickets viven en tu navegador y en los dispositivos con los que los sincronices.
-            Si borras un ticket, se elimina de tu dispositivo (y del resto si la sincronización está activa). Al cerrar esta web sin cuenta creada,
-            no queda ninguna copia fuera de tu equipo.
-          </p>
+      {/* Créditos */}
+      <section className="surface p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--accent-soft)] flex items-center justify-center"><span className="text-[var(--accent)] font-bold text-lg">R</span></div>
+            <div>
+              <p className="text-[14px] font-medium">Proyecto creado por <strong className="text-[var(--accent)]">Reven</strong></p>
+              <p className="text-footnote">Versión 0.7 · En desarrollo</p>
+            </div>
+          </div>
+          <p className="text-[11px] text-[var(--text-3)] font-mono">Build 2026.01</p>
         </div>
       </section>
 
       <Modal open={confirmWipe} onClose={() => setConfirmWipe(false)}>
         <div className="p-6">
-          <h3 className="font-display font-bold text-lg">¿Borrar {tickets.length} tickets?</h3>
-          <p className="text-mut text-sm mt-2 leading-relaxed">
-            Se eliminarán los tickets y sus fotos de este dispositivo. Esta acción no se puede deshacer; si quieres conservar los datos, expórtalos a Excel antes.
-          </p>
+          <h3 className="text-title-2">¿Borrar {tickets.length} tickets?</h3>
+          <p className="text-[var(--text-2)] text-[14px] mt-2 leading-relaxed">Se eliminarán los tickets y sus fotos. Esta acción no se puede deshacer.</p>
           <div className="flex justify-end gap-2 mt-6">
-            <Button variant="ghost" onClick={() => setConfirmWipe(false)}>Cancelar</Button>
-            <Button
-              variant="danger"
-              onClick={async () => {
-                await clearAll();
-                setConfirmWipe(false);
-                toast("info", "Archivador vacío en este dispositivo.");
-              }}
-            >
-              <Trash2 size={15} /> Sí, borrar todo
-            </Button>
+            <Button variant="secondary" onClick={() => setConfirmWipe(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={async () => { await clearAll(); setConfirmWipe(false); toast("info", "Archivador vacío."); }}><Trash2 size={14} /> Borrar todo</Button>
           </div>
         </div>
       </Modal>
-
-      {/* Créditos del proyecto */}
-      <section className="bg-card border border-line rounded-xl p-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-acc/10 flex items-center justify-center">
-              <span className="text-acc font-bold text-lg">R</span>
-            </div>
-            <div>
-              <p className="text-[13.5px] font-medium text-ink">Proyecto creado por <strong className="text-acc">Reven</strong></p>
-              <p className="text-[12px] text-mut">
-                Versión {version} · {isMobile ? "Early mobile version" : "En desarrollo activo"}
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-[11px] text-mut font-mono">Build 2026.01</p>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

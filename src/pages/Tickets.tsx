@@ -180,7 +180,7 @@ export default function Tickets() {
           icon={<Search size={24} />}
           title="Nada coincide con tu búsqueda"
           desc="Prueba a quitar algún filtro o reformula la consulta: entiende tiendas, importes, fechas y categorías."
-          action={<Button variant="outline" onClick={() => { setQuery(""); setCatFilter(null); setStoreFilter(null); }}><X size={15} /> Limpiar filtros</Button>}
+          action={<Button variant="secondary" onClick={() => { setQuery(""); setCatFilter(null); setStoreFilter(null); }}><X size={15} /> Limpiar filtros</Button>}
         />
       ) : (
         groups.map(([month, list]) => (
