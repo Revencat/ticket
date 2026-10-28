@@ -182,22 +182,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Dock inferior */}
       <nav className="fixed bottom-3 inset-x-0 z-40 flex justify-center px-3 pointer-events-none">
         <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.1 }}
-          className="pointer-events-auto safe-bottom flex items-end gap-0.5 px-1.5 pt-1 pb-1 rounded-[22px] bg-[var(--surface)]/90 backdrop-blur-xl border border-[var(--border)] shadow-[var(--shadow-md)]">
+          className="pointer-events-auto safe-bottom flex items-stretch px-2 py-2 rounded-2xl bg-[var(--surface)]/95 backdrop-blur-xl border border-[var(--border)] shadow-[var(--shadow-md)] max-w-[420px] w-full">
 
-          {NAV.slice(0, 2).map((item) => <DockItem key={item.to} {...item} badge={item.to === "/tickets" ? tickets.length : 0} />)}
+          {/* Elementos regulares */}
+          {NAV.map((item, idx) => (
+            <DockItem 
+              key={item.to} 
+              {...item} 
+              badge={item.to === "/tickets" ? tickets.length : 0}
+              isLast={false}
+            />
+          ))}
 
-          {/* Escanear (centro) */}
-          <div className="relative -mt-5 mx-0.5">
-            <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 24 }}
-              onClick={() => nav("/scan")}
-              className={cls("relative w-[50px] h-[50px] rounded-full flex items-center justify-center text-white shadow-lg cursor-pointer",
-                loc.pathname === "/scan" && "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--surface)]")}
-              style={{ background: "var(--accent)" }} aria-label="Escanear" title="Escanear (N)">
-              <ScanLine size={21} strokeWidth={2.2} />
-            </motion.button>
-          </div>
+          {/* Separador sutil antes del Lector */}
+          <div className="w-px bg-[var(--border)] my-2 mx-1" />
 
-          {NAV.slice(2).map((item) => <DockItem key={item.to} {...item} badge={0} />)}
+          {/* Lector (destacado al final) */}
+          <DockItem
+            to="/scan"
+            label="Lector"
+            icon={ScanLine}
+            badge={0}
+            isPrimary
+            isLast={true}
+          />
         </motion.div>
       </nav>
 
@@ -235,18 +243,59 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function DockItem({ to, label, icon: Icon, badge }: { to: string; label: string; icon: LucideIcon; badge: number }) {
+function DockItem({ to, label, icon: Icon, badge, isPrimary, isLast }: { to: string; label: string; icon: LucideIcon; badge: number; isPrimary?: boolean; isLast?: boolean }) {
   return (
-    <NavLink to={to} end={to === "/"} className="group relative flex flex-col items-center" title={label}>
+    <NavLink to={to} end={to === "/"} className="group relative flex-1 flex flex-col items-center" title={label}>
       {({ isActive }) => (
-        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.88 }} transition={{ type: "spring", stiffness: 500, damping: 26 }}
-          className={cls("relative flex flex-col items-center justify-center w-[50px] h-[44px] rounded-xl cursor-pointer", !isActive && "hover:bg-[var(--surface-3)]")}>
-          {isActive && <motion.span layoutId="dock-pill" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-xl bg-[var(--accent-soft)]" />}
+        <motion.div 
+          whileHover={{ scale: 1.05 }} 
+          whileTap={{ scale: 0.95 }} 
+          transition={{ type: "spring", stiffness: 500, damping: 26 }}
+          className={cls(
+            "relative flex flex-col items-center justify-center w-full h-[52px] rounded-xl cursor-pointer transition-colors",
+            isPrimary 
+              ? isActive 
+                ? "bg-[var(--accent)]" 
+                : "bg-[var(--accent)]/90 hover:bg-[var(--accent)]"
+              : !isActive && "hover:bg-[var(--surface-3)]"
+          )}
+        >
+          {isActive && !isPrimary && (
+            <motion.span 
+              layoutId="dock-pill" 
+              transition={{ type: "spring", stiffness: 420, damping: 32 }} 
+              className="absolute inset-0 rounded-xl bg-[var(--accent-soft)]" 
+            />
+          )}
           <span className="relative">
-            <Icon size={20} className={cls("transition-colors", isActive ? "text-[var(--accent)]" : "text-[var(--text-2)] group-hover:text-[var(--text)]")} strokeWidth={isActive ? 2.2 : 1.75} />
-            {badge > 0 && <span className="absolute -top-1 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[var(--accent)] text-white text-[9px] font-bold flex items-center justify-center">{badge > 99 ? "99+" : badge}</span>}
+            <Icon 
+              size={22} 
+              className={cls(
+                "transition-all duration-200",
+                isPrimary 
+                  ? "text-white"
+                  : isActive 
+                    ? "text-[var(--accent)]" 
+                    : "text-[var(--text-2)] group-hover:text-[var(--text)]"
+              )} 
+              strokeWidth={isActive || isPrimary ? 2.2 : 1.75} 
+            />
+            {badge > 0 && (
+              <span className="absolute -top-1 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[var(--accent)] text-white text-[9px] font-bold flex items-center justify-center shadow-sm">
+                {badge > 99 ? "99+" : badge}
+              </span>
+            )}
           </span>
-          <span className={cls("text-[9px] font-medium leading-none mt-0.5 transition-colors", isActive ? "text-[var(--accent)]" : "text-[var(--text-3)] hidden md:block")}>{label}</span>
+          <span className={cls(
+            "text-[10px] font-medium leading-none mt-1 transition-colors",
+            isPrimary 
+              ? "text-white/90"
+              : isActive 
+                ? "text-[var(--accent)]" 
+                : "text-[var(--text-3)]"
+          )}>
+            {label}
+          </span>
         </motion.div>
       )}
     </NavLink>
